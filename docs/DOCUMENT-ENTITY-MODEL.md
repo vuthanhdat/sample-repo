@@ -1,78 +1,195 @@
-# Document Domain — Entity Relationship Model
+# Document & Project Structure — Entity Model
 
-Tài liệu này mô tả **quan hệ giữa các entity của phần quản lý tài liệu**. Phạm vi hiện tại chỉ tập trung vào document, template, structured knowledge object, version và relation; chưa đưa các concern SaaS như billing, authentication, subscription hay organization vào mô hình.
+Tài liệu này mô tả phần **Project Structure + Document + Knowledge Placement** và boundary của chúng với Traceability Graph. Nó không định nghĩa toàn bộ SaaS domain; canonical cross-domain model nằm ở `APP-DOMAIN-MODEL.md`.
 
-## 1. Conceptual entity map
+Điểm quan trọng nhất:
+
+> **Folder/document hierarchy là structure/navigation tree. Semantic dependency là traceability graph. Không dùng một model để thay cho model kia.**
+
+`docs/sample-project/` chỉ là acceptance fixture để kiểm tra app có thể biểu diễn một tree nhiều tầng gồm folder và document.
+
+## 1. Conceptual model
 
 ```mermaid
 flowchart TD
-    DT[DocumentTemplate]
+    PTV[ProjectTemplateVersion]
+    PST[ProjectStructureTemplateNode]
+    DTV[DocumentTemplateVersion]
     TS[TemplateSection]
+
+    P[Project]
+    PSN[ProjectStructureNode]
     D[Document]
     DV[DocumentVersion]
     DS[DocumentSection]
     KO[KnowledgeObject]
     KOV[KnowledgeObjectVersion]
     KP[KnowledgePlacement]
-    OR[ObjectRelation]
+    R[Relation]
+    X[Other Traceable Entity]
 
-    DT -->|defines| TS
-    DT -->|creates| D
-    TS -->|instantiated as| DS
+    PTV -->|defines tree| PST
+    PST -->|document node may use| DTV
+    DTV -->|defines| TS
 
+    P -->|has| PSN
+    PSN -->|parent-child| PSN
+    PSN -->|document node references| D
+
+    DTV -->|creates| D
     D -->|has versions| DV
     D -->|contains| DS
+    TS -->|instantiated as| DS
 
-    DS -->|places| KP
-    D -->|may place directly| KP
-
+    D -->|has placements| KP
+    DS -->|contains placements| KP
     KP -->|references| KO
     KP -->|may pin| KOV
-
     KO -->|has versions| KOV
 
-    KO -->|source| OR
-    OR -->|target| KO
+    D -->|traceable endpoint| R
+    KO -->|traceable endpoint| R
+    X -->|traceable endpoint| R
 ```
 
-## 2. Cách đọc mô hình
+## 2. Project Structure Tree
 
-### DocumentTemplate
+### 2.1 ProjectStructureTemplateNode
 
-Định nghĩa cấu trúc chuẩn của một loại tài liệu, ví dụ Requirement Specification, API Specification, Screen Specification hoặc Architecture Overview.
-
-### TemplateSection
-
-Định nghĩa section chuẩn trong template. Một template có nhiều section và section có thể có cấu trúc cha-con.
-
-Ví dụ:
+Dùng để định nghĩa structure tree trong `ProjectTemplateVersion`.
 
 ```text
-API Specification
-├── Overview
-├── Request
-├── Response
-├── Business Rules
-└── Error Cases
+ProjectStructureTemplateNode
+- TemplateNodeId
+- ProjectTemplateVersionId
+- ParentTemplateNodeId?
+- NodeType: Folder | Document
+- Name
+- SortOrder
+- DocumentTemplateVersionId?
+- Required
+- Metadata
 ```
 
-### Document
+Document template node phải reference `DocumentTemplateVersion`. Folder node không reference document template.
 
-Là identity logic của một tài liệu trong project. `Document` không đồng nghĩa với Requirement hay Design Object. Nó là container phục vụ authoring, navigation và rendering.
+### 2.2 ProjectStructureNode
 
-### DocumentVersion
+Là node thực tế trong project.
 
-Lưu lịch sử version của document. Việc thay wording, layout hoặc cấu trúc document có thể tạo `DocumentVersion` mới mà không nhất thiết làm thay đổi semantic version của mọi knowledge object bên trong.
+```text
+ProjectStructureNode
+- StructureNodeId
+- ProjectId
+- ParentStructureNodeId?
+- NodeType: Folder | Document
+- Name
+- SortOrder
+- DocumentId?
+- Status: Active | Archived
+```
 
-### DocumentSection
+Structure node chịu trách nhiệm:
 
-Là section thực tế được tạo trong một document. Section có thể được sinh từ `TemplateSection`, nhưng sau khi tạo vẫn là entity riêng của document.
+- folder/document tree;
+- navigation;
+- move/reorder;
+- display path;
+- export path projection.
 
-### KnowledgeObject
+Không đặt parent path vào `Document`. `Document` phải giữ identity ổn định khi node bị move/rename.
 
-Là semantic object thực sự có ID ổn định và tham gia traceability graph.
+### 2.3 Structural invariants
 
-Ví dụ:
+1. Parent node phải cùng project.
+2. Tree không cycle.
+3. Folder node không có `DocumentId`.
+4. Document node bắt buộc có `DocumentId` cùng project.
+5. MVP chỉ có một primary structure node cho một Document.
+6. `CanonicalPath` được derive từ tree; path không phải identity.
+7. Move/rename/reorder không tự tạo semantic impact.
+
+## 3. Document Template và Document
+
+### 3.1 DocumentTemplateVersion
+
+Định nghĩa content/section structure của một document, không định nghĩa vị trí của document trong project tree.
+
+```text
+DocumentTemplateVersion
+- DocumentTemplateVersionId
+- DocumentTemplateId
+- Version
+- SchemaVersion
+- ContentTemplate
+```
+
+### 3.2 TemplateSection
+
+```text
+TemplateSection
+- TemplateSectionId
+- DocumentTemplateVersionId
+- ParentTemplateSectionId?
+- SectionKey
+- Title
+- SortOrder
+- Required
+```
+
+### 3.3 Document
+
+```text
+Document
+- DocumentId
+- ProjectId
+- Key
+- Title
+- DocumentType
+- DocumentTemplateVersionId?
+- Status
+- CurrentVersionId
+- OwnerMembershipId?
+```
+
+`Document` là authoring container và là traceable entity.
+
+Không có `ParentDocumentId`; hierarchy thuộc `ProjectStructureNode`.
+
+### 3.4 DocumentVersion
+
+```text
+DocumentVersion
+- DocumentVersionId
+- DocumentId
+- VersionNumber
+- Content
+- Status
+- ChangeSummary
+- CreatedByPrincipalId
+- CreatedAt
+```
+
+Document wording/layout change có lifecycle riêng với semantic objects được render trong document.
+
+### 3.5 DocumentSection
+
+```text
+DocumentSection
+- DocumentSectionId
+- DocumentId
+- TemplateSectionId?
+- ParentDocumentSectionId?
+- SectionKey
+- Title
+- SortOrder
+```
+
+## 4. Knowledge Object và Placement
+
+### 4.1 KnowledgeObject
+
+Semantic object có stable identity, ví dụ:
 
 ```text
 GOAL-001
@@ -83,91 +200,162 @@ DES-P2P-005
 API-P2P-007-SPEC
 ```
 
-### KnowledgeObjectVersion
+```text
+KnowledgeObject
+- KnowledgeObjectId
+- ProjectId
+- Key
+- ObjectType
+- Title
+- Status
+- CurrentVersionId
+```
 
-Quản lý version semantic của một knowledge object. Ví dụ requirement đổi business meaning từ v4 sang v5 thì tạo version mới của `KnowledgeObject`, không chỉ tạo một `DocumentVersion` mới.
+### 4.2 KnowledgeObjectVersion
 
-### KnowledgePlacement
+```text
+KnowledgeObjectVersion
+- KnowledgeObjectVersionId
+- KnowledgeObjectId
+- VersionNumber
+- Status
+- Payload
+- CreatedByPrincipalId
+- CreatedAt
+```
 
-Là entity trung gian cho biết một `KnowledgeObject` được hiển thị ở đâu trong document.
+### 4.3 KnowledgePlacement
 
-Nhờ entity này, cùng một Business Rule có thể xuất hiện trong nhiều tài liệu nhưng vẫn chỉ có một canonical semantic object.
+```text
+KnowledgePlacement
+- PlacementId
+- KnowledgeObjectId
+- KnowledgeObjectVersionId?
+- DocumentId
+- DocumentSectionId?
+- Anchor?
+- DisplayMode
+- SortOrder
+```
+
+Placement cho biết **object được render ở đâu**.
+
+Ví dụ một BusinessRule canonical có thể xuất hiện trong nhiều document:
 
 ```text
 BR-P2P-006
-   ├── appears in Requirement Document
-   ├── appears in API Specification
-   └── appears in Test Specification
+├── placement → Requirement Document
+├── placement → API Design Document
+└── placement → Test Specification
 ```
 
-### ObjectRelation
+Không copy BusinessRule thành nhiều object.
 
-Là edge có cấu trúc nối hai `KnowledgeObject`.
+## 5. Traceability boundary
 
-Ví dụ:
+### 5.1 Relation không giới hạn ở KnowledgeObject
+
+Tài liệu cũ từng mô hình `ObjectRelation` chỉ nối hai KnowledgeObjects. Điều đó không đủ cho sản phẩm vì impact graph phải đi xuyên qua Document, Requirement, Design, Deliverable, Task, Verification và Artifact.
+
+Canonical model dùng generic endpoint:
 
 ```text
-GOAL-001
-    ↓ decomposes-to
-REQ-P2P-012
-    ↓ accepted-by
-AC-P2P-012-01
-
-REQ-P2P-012
-    ↓ governed-by
-BR-P2P-006
-
-REQ-P2P-012
-    ↓ satisfied-by
-DES-P2P-005
+TraceableRef
+- ProjectId
+- EntityType
+- EntityId
 ```
 
-`ObjectRelation` là source of truth của relation. Không lưu thêm reverse relation editable độc lập.
+```text
+Relation
+- RelationId
+- ProjectId
+- FromEntityType
+- FromEntityId
+- RelationType
+- ToEntityType
+- ToEntityId
+- FromVersionRef?
+- ToVersionRef?
+- Metadata
+```
 
-## 3. ERD mức logical database
+Endpoint có thể là:
+
+```text
+Document
+KnowledgeObject
+Deliverable
+Task
+VerificationDefinition
+Milestone
+ImplementationArtifact
+ChangeRequest
+...
+```
+
+### 5.2 Placement khác Relation
+
+```text
+KnowledgePlacement
+→ object appears in document
+
+Relation
+→ object semantically depends on / requires / specifies / implements / verifies another object
+```
+
+Một placement không tự tạo relation semantic. Nếu Document A reference Document B vì một lý do traceability có ý nghĩa, tạo explicit `references` relation giữa hai Documents.
+
+### 5.3 Structure parent-child khác Relation
+
+Không tạo:
+
+```text
+Folder --contains--> Document
+```
+
+bằng traceability graph để thay cho structure tree. Parent-child của ProjectStructureNode đã là canonical source của navigation structure.
+
+## 6. Logical ERD — document/structure scope
 
 ```mermaid
 erDiagram
-    DOCUMENT_TEMPLATE ||--o{ TEMPLATE_SECTION : defines
-    DOCUMENT_TEMPLATE ||--o{ DOCUMENT : creates
+    PROJECT_TEMPLATE_VERSION ||--o{ PROJECT_STRUCTURE_TEMPLATE_NODE : defines
+    PROJECT_STRUCTURE_TEMPLATE_NODE ||--o{ PROJECT_STRUCTURE_TEMPLATE_NODE : parent_of
+    DOCUMENT_TEMPLATE_VERSION ||--o{ PROJECT_STRUCTURE_TEMPLATE_NODE : used_by_document_node
+    DOCUMENT_TEMPLATE_VERSION ||--o{ TEMPLATE_SECTION : defines
 
+    PROJECT ||--o{ PROJECT_STRUCTURE_NODE : contains
+    PROJECT_STRUCTURE_NODE ||--o{ PROJECT_STRUCTURE_NODE : parent_of
+    PROJECT_STRUCTURE_NODE }o--|| DOCUMENT : document_node
+
+    DOCUMENT_TEMPLATE_VERSION ||--o{ DOCUMENT : creates
     DOCUMENT ||--o{ DOCUMENT_VERSION : has
     DOCUMENT ||--o{ DOCUMENT_SECTION : contains
-
     TEMPLATE_SECTION ||--o{ DOCUMENT_SECTION : instantiates
 
     DOCUMENT ||--o{ KNOWLEDGE_PLACEMENT : has
     DOCUMENT_SECTION ||--o{ KNOWLEDGE_PLACEMENT : contains
-
-    KNOWLEDGE_OBJECT ||--o{ KNOWLEDGE_OBJECT_VERSION : has
     KNOWLEDGE_OBJECT ||--o{ KNOWLEDGE_PLACEMENT : appears_in
+    KNOWLEDGE_OBJECT ||--o{ KNOWLEDGE_OBJECT_VERSION : has
     KNOWLEDGE_OBJECT_VERSION ||--o{ KNOWLEDGE_PLACEMENT : pins
 
-    KNOWLEDGE_OBJECT ||--o{ OBJECT_RELATION : source
-    KNOWLEDGE_OBJECT ||--o{ OBJECT_RELATION : target
-
-    DOCUMENT_TEMPLATE {
+    PROJECT_STRUCTURE_NODE {
         string id PK
-        string template_key
+        string project_id FK
+        string parent_node_id FK
+        string node_type
         string name
-        string document_type
-        int schema_version
-    }
-
-    TEMPLATE_SECTION {
-        string id PK
-        string document_template_id FK
-        string parent_section_id FK
-        string section_key
-        string title
         int sort_order
-        boolean required
+        string document_id FK
+        string status
     }
 
     DOCUMENT {
         string id PK
+        string project_id FK
         string document_key
-        string document_template_id FK
+        string document_template_version_id FK
         string title
         string document_type
         string status
@@ -194,6 +382,7 @@ erDiagram
 
     KNOWLEDGE_OBJECT {
         string id PK
+        string project_id FK
         string object_key
         string object_type
         string title
@@ -218,88 +407,129 @@ erDiagram
         string display_mode
         int sort_order
     }
-
-    OBJECT_RELATION {
-        string id PK
-        string from_object_id FK
-        string to_object_id FK
-        string relation_type
-        string metadata
-    }
 ```
 
-## 4. Quan hệ quan trọng nhất
+Generic `Relation` không được vẽ bằng FK trực tiếp tới từng entity type trong ERD này vì physical representation cần được quyết định ở detailed design. Conceptual requirement là relation endpoint phải resolve an toàn về traceable entity cùng Project.
 
-Mô hình có hai trục độc lập nhưng kết nối với nhau.
+## 7. Ba trục cần phân biệt
 
-### Trục authoring
+### 7.1 Structure axis
 
 ```text
-DocumentTemplate
-      ↓
+Project
+  ↓
+ProjectStructureNode
+  ↓ parent/child
+Folder / DocumentNode
+```
+
+Trả lời: **document nằm ở đâu?**
+
+### 7.2 Authoring axis
+
+```text
 Document
-      ↓
+  ↓
 DocumentSection
-      ↓
+  ↓
 KnowledgePlacement
-```
-
-Trục này trả lời câu hỏi: **nội dung được tổ chức và hiển thị ở đâu?**
-
-### Trục semantic
-
-```text
-KnowledgeObject
-      ↓
-KnowledgeObjectVersion
-
-KnowledgeObject
-      ↕ ObjectRelation
+  ↓
 KnowledgeObject
 ```
 
-Trục này trả lời câu hỏi: **project đang biết những gì và các knowledge object liên quan với nhau như thế nào?**
+Trả lời: **nội dung/semantic object được trình bày ở đâu?**
 
-`KnowledgePlacement` là cầu nối giữa hai trục.
-
-## 5. Ví dụ thực tế
-
-Giả sử project có document `DOC-P2P-REQ-001 — Purchase Order Requirements`.
+### 7.3 Traceability axis
 
 ```text
-DOCUMENT
+Traceable Entity
+  ↕ Relation
+Traceable Entity
+```
+
+Trả lời: **entity này tồn tại vì sao, phụ thuộc gì, được implement/verify bởi gì, và change sẽ ảnh hưởng tới đâu?**
+
+## 8. Example
+
+Project structure:
+
+```text
+20 Requirements/
+└── Purchase Order Requirements.md  → DOC-P2P-REQ-001
+
+30 Design/
+└── Purchase Order API.md           → DOC-P2P-API-001
+```
+
+Placements:
+
+```text
 DOC-P2P-REQ-001
-│
-├── Section: Business Requirements
-│      │
-│      ├── Placement → REQ-P2P-012
-│      └── Placement → REQ-P2P-013
-│
-└── Section: Business Rules
-       │
-       ├── Placement → BR-P2P-006
-       └── Placement → BR-P2P-007
+├── REQ-P2P-012
+└── BR-P2P-006
+
+DOC-P2P-API-001
+├── API-P2P-007-SPEC
+└── BR-P2P-006    # same canonical rule, second placement
 ```
 
-Nhưng semantic graph độc lập với document tree:
+Traceability:
 
 ```text
-GOAL-P2P-001
-     ↓ decomposes-to
-REQ-P2P-012
-     ├── governed-by → BR-P2P-006
-     ├── governed-by → BR-P2P-007
-     └── accepted-by → AC-P2P-012-01
+REQ-P2P-012 --governed-by--> BR-P2P-006
+REQ-P2P-012 --requires-----> API-P2P-007
+API-P2P-007-SPEC --specifies--> API-P2P-007
+TASK-P2P-BE-042 --implements--> API-P2P-007
+VER-P2P-012 --verifies--------> API-P2P-007
+DOC-P2P-API-001 --references--> REQ-P2P-012   # optional semantic relation
 ```
 
-Nếu `BR-P2P-006` cũng cần xuất hiện trong API design document, chỉ tạo thêm một `KnowledgePlacement`. Không copy Business Rule thành object mới.
+Nếu document API được move sang folder khác, traceability không đổi. Nếu `REQ-P2P-012` đổi semantic version, impact engine có thể traverse relation tới API spec/deliverable/task/verification.
 
-## 6. Nguyên tắc cần giữ
+## 9. Required CRUD behavior
 
-1. `Document` là container, không phải semantic source duy nhất.
-2. Mọi object cần trace phải có `KnowledgeObject` và stable ID riêng.
-3. `DocumentVersion` và `KnowledgeObjectVersion` là hai lifecycle khác nhau.
-4. Một `KnowledgeObject` có thể xuất hiện ở nhiều document thông qua `KnowledgePlacement`.
-5. Quan hệ semantic được quản lý bằng `ObjectRelation`, không suy luận từ vị trí trong folder/document.
-6. Reverse relation phải được query từ canonical edge thay vì lưu hai bản editable.
-7. Template định nghĩa cấu trúc mặc định nhưng không trở thành nơi lưu dữ liệu thực tế của document.
+### Structure
+
+- create folder/document node;
+- rename;
+- move;
+- reorder;
+- archive/restore;
+- query tree/subtree/path.
+
+### Document
+
+- create blank/from template;
+- edit/version;
+- section CRUD;
+- baseline/history/diff;
+- placement CRUD.
+
+### KnowledgeObject
+
+- create/edit/version/archive;
+- place/remove placement;
+- query all placements.
+
+### Relation
+
+- create/delete/update metadata;
+- validate relation type/source/target;
+- query inbound/outbound;
+- backlinks;
+- traversal/impact.
+
+## 10. Invariants
+
+1. Structure tree không cycle.
+2. Structure node parent/document cùng Project.
+3. Document identity không phụ thuộc path.
+4. Folder không phải Document.
+5. DocumentVersion và KnowledgeObjectVersion độc lập.
+6. Placement không phải Relation.
+7. Structure parent-child không phải Relation.
+8. Relation endpoint không giới hạn ở KnowledgeObject.
+9. Reverse relation được generated từ canonical directed edge.
+10. Baseline/reference history phải sống sót qua move/rename/archive.
+
+> **Project Structure quản lý “where”; Document/Placement quản lý “how knowledge is authored”; Traceability Relation quản lý “why/how entities depend on each other”.**
