@@ -2,7 +2,7 @@
 id: TASK-ORD-FE-001
 type: Task
 status: Ready
-version: 2
+version: 3
 title: Implement Order Detail Screen
 relations:
   implements:
@@ -12,9 +12,12 @@ relations:
     - AC-ORD-003-01
     - AC-ORD-003-02
     - NFR-PERF-001
-    - SREQ-001
     - NFR-OPS-001
+    - NFR-UX-001
+    - NFR-MNT-001
+    - SREQ-001
     - DES-ORD-001
+    - ARCH-002
     - SCR-DES-001
     - API-DES-001
     - API-ORD-001
@@ -23,17 +26,19 @@ relations:
     - TEST-ORD-001
     - SEC-TEST-001
     - PERF-001
+    - UX-TEST-001
+    - ARCH-TEST-001
 ---
 
 # TASK-ORD-FE-001 — Implement Order Detail Screen
 
 ## Objective
 
-Implement `SCR-ORD-001` according to `SCR-DES-001`, API contract, authorization behavior and relevant performance/operability constraints.
+Implement `SCR-ORD-001` according to `SCR-DES-001`, API contract, authorization behavior and relevant performance, usability/accessibility, operability and maintainability constraints.
 
 ## Mandatory context
 
-Task phải đọc requirement/AC, screen specification, API specification, security policy và applicable NFRs. Không được tự invent state/action behavior từ mockup.
+Task phải đọc requirement/AC, screen specification, API specification, security policy, architecture boundary và applicable NFRs. Không được tự invent state/action behavior từ mockup.
 
 ## Write set
 
@@ -47,11 +52,11 @@ Task phải đọc requirement/AC, screen specification, API specification, secu
 - Paged status timeline.
 - Action controls theo state/permission.
 - Loading/empty/error/concurrency-conflict states.
-- Accessible status/action presentation.
+- Keyboard/accessibility semantics theo `NFR-UX-001`.
 
 ## Done when
 
 - Render/interaction tuân `SCR-DES-001`.
 - UI uses `API-DES-001` contract.
 - Backend remains authority for authorization/business state.
-- Relevant security/performance verification has passing evidence before release gate.
+- `UX-TEST-001` và relevant security/performance/architecture checks có passing evidence trước release gate.
