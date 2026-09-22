@@ -1,72 +1,42 @@
 # Sample Project — Order & Inventory Management
 
-Đây là một **bộ tài liệu mẫu có cấu trúc của một software project**, dùng để kiểm tra mô hình document/template/traceability mà SaaS sẽ quản lý. Điểm quan trọng của version này là tách rõ **Common/Application Design** khỏi **Business/Feature Design**, đồng thời có các **output inventory lists** để quản lý màn hình, API, batch/job, interface, event, database, file, mail và notification.
+Đây là bộ tài liệu mẫu cho một software project được quản lý bằng ID, relation, version, lifecycle và traceability. Folder chỉ là navigation; graph giữa Goal → Requirement → Design → Deliverable → Task → Verification mới là model logic.
 
-## 1. Cấu trúc
+## Cấu trúc chính
 
 ```text
 docs/sample-project/
-├── README.md
 ├── 00-governance/
-│   └── DOCUMENT-CATALOG.md
 ├── 10-goals/
 ├── 15-business-context/
 ├── 20-business-flows/
 ├── 30-requirements/
-│   ├── REQ-*.md
-│   ├── non-functional/
-│   ├── data/
-│   ├── integration/
-│   └── security/
-│
 ├── 40-design/
-│   ├── README.md
-│   ├── 00-common/
+│   ├── 10-common/
 │   │   ├── architecture/
-│   │   │   └── APP-ARCH-001-application-architecture.md
 │   │   ├── backend/
-│   │   │   └── BE-ARCH-001-backend-design.md
 │   │   ├── frontend/
-│   │   │   └── FE-ARCH-001-frontend-design.md
 │   │   ├── api/
-│   │   │   └── API-STD-001-api-conventions.md
-│   │   ├── data/
-│   │   │   └── TX-STD-001-transaction-concurrency.md
 │   │   └── security/
-│   │       └── AUTH-DES-001-authentication-session.md
-│   │
-│   ├── DES-ORD-001-order-approval-solution.md
-│   ├── DES-INV-001-stock-reservation-solution.md
-│   ├── architecture/
-│   ├── data/
-│   ├── api/
-│   ├── screen/
-│   ├── job/
-│   ├── event/
-│   ├── integration/
-│   ├── security/
-│   └── configuration/
-│
+│   └── 20-business/
+│       ├── 00-shared-domain/
+│       │   ├── architecture/
+│       │   ├── data/
+│       │   └── configuration/
+│       ├── order/
+│       │   ├── decision/
+│       │   ├── api/
+│       │   ├── screen/
+│       │   └── event/
+│       ├── inventory/
+│       │   ├── decision/
+│       │   ├── api/
+│       │   └── job/
+│       └── shipping/
+│           └── integration/
 ├── 50-deliverables/
 │   ├── 00-lists/
-│   │   ├── README.md
-│   │   ├── SCREEN-LIST.md
-│   │   ├── API-LIST.md
-│   │   ├── BATCH-JOB-LIST.md
-│   │   ├── INTERFACE-LIST.md
-│   │   ├── EVENT-LIST.md
-│   │   ├── DATABASE-LIST.md
-│   │   ├── FILE-LIST.md
-│   │   ├── MAIL-LIST.md
-│   │   └── NOTIFICATION-LIST.md
-│   ├── API-ORD-001-order-command-api.md
-│   ├── API-INV-001-stock-reservation-api.md
-│   ├── SCR-ORD-001-order-detail.md
-│   ├── EVT-ORD-001-order-status-changed.md
-│   ├── DB-ORD-001-order-database.md
-│   ├── DB-INV-001-inventory-database.md
-│   ├── JOB-INV-001-release-expired-reservations.md
-│   └── INT-SHP-001-shipping-interface.md
+│   └── ... deliverable specifications ...
 ├── 55-planning/
 ├── 60-tasks/
 ├── 70-verification/
@@ -75,203 +45,107 @@ docs/sample-project/
 └── 90-traceability/
 ```
 
-## 2. Hai lớp Design khác nhau
+## Design có hai scope độc lập
 
-### 2.1 Common / Application Design
+### Common / Application Design
 
-Common Design trả lời câu hỏi: **toàn application được xây như thế nào bất kể nghiệp vụ cụ thể là gì?**
+`40-design/10-common/` trả lời: **application được xây như thế nào bất kể business feature là gì?**
 
-Ví dụ:
+- `APP-ARCH-001`: application architecture và dependency direction.
+- `BE-ARCH-001`: backend responsibility/layering.
+- `FE-ARCH-001`: frontend shell/routing/state/data/form conventions.
+- `API-STD-001`: REST/API naming, pagination, filtering/sorting, error contract, idempotency.
+- `TX-STD-001`: transaction boundary, concurrency, retry.
+- `AUTH-DES-001`: login/logout/session/token lifecycle.
+- `SEC-DES-001`: authorization enforcement và audit model.
 
-- `APP-ARCH-001` — kiến trúc application, dependency direction, module boundary.
-- `BE-ARCH-001` — responsibility của Controller/Application/Domain/Infrastructure.
-- `FE-ARCH-001` — app shell, routing, state/data access, form, i18n, accessibility.
-- `API-STD-001` — API conventions, pagination, sort/filter, error model, idempotency.
-- `TX-STD-001` — transaction boundary, external I/O, concurrency, retry, job transaction.
-- `AUTH-DES-001` — login, logout, session/token lifecycle, authentication vs authorization.
+Common Design là baseline có version. Business design không copy lại rule chung; nó kế thừa hoặc khai báo exception có trace.
 
-Các tài liệu này là **baseline được kế thừa** bởi nhiều feature. Business design không lặp lại các rule chung trừ khi cần override có kiểm soát.
+### Business / Feature Design
 
-```text
-Common Design Baseline
-      ↓ applies-to
-Business / Feature Design
-      ↓ specifies
-Deliverable
-      ↓ implemented-by
-Task
-```
+`40-design/20-business/` trả lời: **solution cho business requirement/domain cụ thể phải trông như thế nào?**
 
-### 2.2 Business / Feature Design
+Nhánh này tổ chức theo domain trước, artifact type sau:
 
-Business Design trả lời câu hỏi: **để đáp ứng requirement nghiệp vụ cụ thể thì solution này phải trông như thế nào?**
-
-Ví dụ:
-
-- `DES-ORD-001` — solution cho Order approval/status.
-- `DES-INV-001` — solution cho stock reservation.
-- `DBD-*` — data model/schema của Order/Inventory.
-- `API-DES-*` — API contract nghiệp vụ.
-- `SCR-DES-*` — screen cụ thể.
-- `JOB-DES-*` — job cụ thể.
-- `EVT-DES-*` — event cụ thể.
-- `INT-DES-*` — external interface cụ thể.
-- `CFG-DES-*` — business configuration cụ thể.
-
-Ví dụ `API-DES-001` không cần định nghĩa lại pagination/error format; nó kế thừa `API-STD-001`.
-
-## 3. Common Design cũng phải trace và version
-
-Common Design không phải tài liệu tham khảo vô thưởng vô phạt. Nó là object có ID/version/baseline. Nếu `TX-STD-001` thay đổi transaction strategy hoặc `API-STD-001` thay đổi pagination contract, hệ thống phải tìm các design/deliverable/task bị ảnh hưởng theo `appliesTo`.
-
-Mỗi common design object nên có tối thiểu:
-
-```text
-id
-scope = Common
-status/version
-appliesTo
-relations
-```
-
-Business design có thể khai báo explicit exception nếu không tuân baseline.
-
-## 4. Output Inventory Lists
-
-Design spec mô tả **một output cụ thể**. Inventory list quản lý **toàn bộ output cùng loại**.
+- `00-shared-domain`: architecture/data/config có business meaning nhưng span nhiều domain.
+- `order`: Order decision, API, screen, event.
+- `inventory`: Inventory decision, API, job.
+- `shipping`: shipping interface/integration.
 
 Ví dụ:
 
 ```text
-SCREEN-LIST.md
-   ├── SCR-ORD-001
-   ├── SCR-ORD-002
-   └── ...
-
-SCR-ORD-001
-   ↑ specified-by
-SCR-DES-001
+API-STD-001 (Common)
+       ↓ applies-to
+API-DES-001 (Order business design)
+       ↓ specifies
+API-ORD-001
+       ↓ implemented-by
+TASK-ORD-BE-001
 ```
 
-Các list hiện có:
+## Tại sao không dùng `40-design/api`, `40-design/screen`, `40-design/job` ở root?
 
-| List | Quản lý |
-|---|---|
-| `SCREEN-LIST.md` | màn hình/page |
-| `API-LIST.md` | API/service contract |
-| `BATCH-JOB-LIST.md` | batch, scheduler, background job |
-| `INTERFACE-LIST.md` | interface giữa system |
-| `EVENT-LIST.md` | event/message |
-| `DATABASE-LIST.md` | database/schema/data store |
-| `FILE-LIST.md` | file import/export |
-| `MAIL-LIST.md` | business email |
-| `NOTIFICATION-LIST.md` | in-app/push/system notification |
-
-Mỗi row không chỉ có ID/name mà phải link được về requirement, detailed design, task, verification và lifecycle status.
-
-Trong SaaS thật, các list này nên là **generated views từ Deliverable registry**, không phải nhiều bảng Markdown được nhập tay.
-
-## 5. Ví dụ: pagination nằm ở đâu?
-
-Pagination là common behavior nên nằm ở `API-STD-001` và `FE-ARCH-001`, không lặp trong từng screen/API.
+Vì cách đó trộn hai dimension khác nhau: scope và artifact type. Nó làm API common convention đứng cạnh API nghiệp vụ, đồng thời làm knowledge của một feature bị rải ở nhiều folder. Cấu trúc mới dùng:
 
 ```text
-API-STD-001
-  defines page/pageSize/sort/filter/response metadata
-       ↓
-API-DES-xxx
-       ↓
-SCR-DES-xxx / frontend list page
+scope → domain → artifact type
 ```
 
-Nếu một API có dataset đặc biệt cần cursor pagination, API design đó ghi exception rõ ràng.
-
-## 6. Ví dụ: transaction nằm ở đâu?
-
-Transaction/concurrency baseline nằm ở `TX-STD-001`:
-
-- một use case write phải có transaction boundary rõ;
-- tránh giữ DB transaction khi gọi external service;
-- define optimistic/pessimistic concurrency;
-- retry chỉ cho transient error và phải idempotent;
-- job define chunk/unit-of-work boundary.
-
-`DES-INV-001` hoặc `JOB-DES-001` chỉ mô tả phần transaction đặc thù của stock reservation/expiry job.
-
-## 7. Ví dụ: login/logout nằm ở đâu?
-
-Login/logout là application-level feature/cross-cutting capability nên nằm ở `AUTH-DES-001`, không thuộc Order hay Inventory.
-
-Business screen/API chỉ khai báo policy cần thiết như:
+thay vì:
 
 ```text
-Order.View
-Order.Approve
-Inventory.Reserve
+artifact type → mọi scope/domain trộn chung
 ```
 
-Authentication trả lời user là ai; authorization quyết định action nào được phép.
+App vẫn có thể tạo view “all APIs”, “all screens”, “all jobs” từ metadata, không cần dùng folder design làm inventory.
 
-## 8. Deliverable inventory và coverage
+## Output inventory lists
 
-ProjectTemplate không chỉ định folder/file; nó phải biết **deliverable types** và list nào cần quản lý. Ví dụ một project có thể đánh giá:
+`50-deliverables/00-lists/` là management view theo loại output:
+
+- `SCREEN-LIST.md`
+- `API-LIST.md`
+- `BATCH-JOB-LIST.md`
+- `INTERFACE-LIST.md`
+- `EVENT-LIST.md`
+- `DATABASE-LIST.md`
+- `FILE-LIST.md`
+- `MAIL-LIST.md`
+- `NOTIFICATION-LIST.md`
+
+List không thay detailed design. Ví dụ `SCREEN-LIST` quản lý toàn bộ screen và coverage; `SCR-DES-001` mới là detailed design của một screen. Trong SaaS thật, các list nên generate từ Deliverable Registry.
+
+## Task context
+
+Human hoặc AI nhận Task ID phải được app resolve hai loại context:
 
 ```text
-Screen        Applicable
-API           Applicable
-Batch/Job     Applicable
-Interface     Applicable
-Database      Applicable
-Event         Applicable
-File          Not Applicable
-Mail          Not Applicable
-Notification  Not Applicable
+Inherited Common Baseline
+  +
+Explicit Business Context
+  +
+Target Deliverables
+  +
+Verification Definitions
 ```
 
-Nếu sau này thêm email xác nhận đơn, Mail chuyển thành Applicable và app yêu cầu Mail ID, design spec, task, verification tương ứng.
+Ví dụ backend Inventory task kế thừa `APP-ARCH-001`, `BE-ARCH-001`, `API-STD-001`, `TX-STD-001`, `AUTH-DES-001`; đồng thời đọc explicit `REQ-INV-001`, `DES-INV-001`, `API-DES-002`, `DBD-*`.
 
-## 9. Task context
+## Change impact
 
-Task phải nhận cả common baseline và business context cần thiết. Ví dụ backend task có context logic:
+Common Design thay đổi có blast radius rộng. Business Design thay đổi thường có scope hẹp hơn theo domain. SaaS phải dùng relation graph để xác định candidate impacts thay vì suy luận từ folder.
 
 ```text
-Common:
-  APP-ARCH-001
-  BE-ARCH-001
-  API-STD-001
-  TX-STD-001
-  AUTH-DES-001
-
-Business:
-  REQ/BR/AC
-  NFR/DREQ/SREQ
-  DES-INV-001
-  API-DES-002
-  DBD-001/002
-
-Output:
-  API-INV-001
-
-Verification:
-  TEST-INV-001
-  PERF-001
-  REL-TEST-001
+Common Standard change
+    ↓
+Affected Business Designs
+    ↓
+Affected Deliverables
+    ↓
+Tasks / Tests / Operations
 ```
 
-App có thể tự resolve common docs theo scope thay vì ghi lặp vào từng task.
+## Nguyên tắc cuối
 
-## 10. Tổng thể
-
-Mô hình tài liệu nên được hiểu theo hai chiều song song:
-
-```text
-Dimension 1 — lifecycle
-Business → Requirement → Design → Deliverable → Task → Verification → Operations
-
-Dimension 2 — scope
-Common/Application Design
-        +
-Business/Feature Design
-```
-
-Và các list `Screen/Batch/Interface/File/Mail/Notification/...` là các **management views theo loại output**, giúp project manager/architect kiểm tra completeness mà không phải duyệt từng folder.
+Folder phản ánh cách con người duyệt knowledge. ID/relation phản ánh model thật. ProjectTemplate phải quản lý applicability, required document products, common baseline, business design coverage, deliverable inventory, task coverage và verification coverage thay vì chỉ kiểm tra sự tồn tại của Markdown file.

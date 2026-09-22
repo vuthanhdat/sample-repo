@@ -1,10 +1,8 @@
 # Document Catalog — Order & Inventory Management
 
-Tài liệu này là **checklist/canonical catalog** cho bộ tài liệu của sample project. Mục tiêu không phải bắt mọi project phải có cùng số file, mà định nghĩa những loại knowledge/design/work product nào phải được xem xét, điều kiện nào khiến chúng trở thành bắt buộc và chúng liên kết với nhau ra sao.
+Catalog này là checklist/canonical taxonomy cho ProjectTemplate. Mục tiêu là định nghĩa loại knowledge/design/work product nào cần được xem xét, applicability rule và quan hệ bắt buộc giữa chúng.
 
-## 1. Nguyên tắc
-
-Một project software đầy đủ phải xem xét cả business knowledge, common application design và business-specific design.
+## 1. Lifecycle model
 
 ```text
 Business Context
@@ -20,131 +18,126 @@ Requirements
   ↓
 Design
   ├── Common / Application Design
-  │   ├── Application Architecture
-  │   ├── Backend Architecture
-  │   ├── Frontend Architecture
-  │   ├── API / Pagination / Error conventions
-  │   ├── Transaction / Concurrency
-  │   └── Authentication / Session
-  │
-  └── Business / Feature Design
-      ├── Domain solution decision
-      ├── Data / Database
-      ├── API
-      ├── Screen / UX
-      ├── Batch / Job
-      ├── Event / Messaging
-      ├── External Interface
-      ├── Business Security
-      └── Business Configuration
+  └── Business / Domain Design
   ↓
-Deliverable Inventory + Type Lists
+Deliverable Inventory
   ↓
 Roadmap / Milestone / Task
   ↓
 Verification
   ↓
-Release / Operations / Change / Traceability
+Operations / Change / Traceability
 ```
 
-## 2. Document checklist
+## 2. Design taxonomy
 
-| Layer | Document / Object type | ID prefix | Khi nào bắt buộc | Sample |
-|---|---|---|---|---|
-| Governance | Project charter / scope | `PRJ-` | Mọi project | `README.md` |
-| Governance | Document catalog | `DOC-CAT-` | Mọi project template | File này |
-| Business | Business goal | `GOAL-` | Mọi project có business outcome | `10-goals/*` |
-| Business | Actor / glossary / context | `ACT-`, `TERM-` | Khi domain có actor/thuật ngữ nghiệp vụ | `15-business-context/BUSINESS-CONTEXT.md` |
-| Business | Business flow | `BF-` | Khi behavior đi qua nhiều bước/actor/system | `20-business-flows/*` |
-| Requirement | Functional requirement | `REQ-` | Khi hệ thống phải cung cấp behavior | `30-requirements/REQ-*` |
-| Requirement | Business rule | `BR-` | Khi behavior bị chi phối bởi rule độc lập | Embedded/reference từ requirement |
-| Requirement | Acceptance criterion | `AC-` | Mọi requirement có thể kiểm chứng | Embedded/reference từ requirement |
-| Requirement | Non-functional requirement | `NFR-` | Mọi production system | `30-requirements/non-functional/*` |
-| Requirement | Data requirement | `DREQ-` | Khi có persistence, history, retention, ownership | `30-requirements/data/*` |
-| Requirement | Integration requirement | `IREQ-` | Khi giao tiếp external system | `30-requirements/integration/*` |
-| Requirement | Security/compliance requirement | `SREQ-` | Khi có auth, PII, audit, compliance | `30-requirements/security/*` |
-| Common Design | Application architecture | `APP-ARCH-` | Mọi application không-trivial | `40-design/00-common/architecture/*` |
-| Common Design | Backend architecture | `BE-ARCH-` | Có backend | `40-design/00-common/backend/*` |
-| Common Design | Frontend architecture | `FE-ARCH-` | Có frontend | `40-design/00-common/frontend/*` |
-| Common Design | API conventions | `API-STD-` | Có API | `40-design/00-common/api/*` |
-| Common Design | Transaction/concurrency | `TX-STD-` | Có write/persistence/job | `40-design/00-common/data/*` |
-| Common Design | Authentication/session | `AUTH-DES-` | Có authenticated user | `40-design/00-common/security/*` |
-| Business Design | System/domain architecture | `ARCH-` | Mọi system không-trivial | `40-design/architecture/*` |
-| Business Design | Design decision | `DES-` | Khi requirement cần quyết định solution | `40-design/DES-*` |
-| Business Design | Logical/physical DB design | `DBD-` | Khi có persistence | `40-design/data/*` |
-| Business Design | API specification | `API-DES-` | Khi có API deliverable | `40-design/api/*` |
-| Business Design | Screen specification | `SCR-DES-` | Khi có UI screen | `40-design/screen/*` |
-| Business Design | Job specification | `JOB-DES-` | Khi có scheduled/background processing | `40-design/job/*` |
-| Business Design | Event specification | `EVT-DES-` | Khi publish/consume event | `40-design/event/*` |
-| Business Design | Interface specification | `INT-DES-` | Khi tích hợp external system/file/protocol | `40-design/integration/*` |
-| Business Design | Security design | `SEC-DES-` | Khi có business authorization/audit rule | `40-design/security/*` |
-| Business Design | Configuration design | `CFG-DES-` | Khi behavior nghiệp vụ configurable | `40-design/configuration/*` |
-| Deliverable | Output entity | `SCR-/API-/EVT-/JOB-/DB-/INT-/FILE-/MAIL-/NOTI-` | Derived từ design | `50-deliverables/*` |
-| Inventory | Screen list | derived | Có screen | `50-deliverables/00-lists/SCREEN-LIST.md` |
-| Inventory | API list | derived | Có API | `50-deliverables/00-lists/API-LIST.md` |
-| Inventory | Batch/Job list | derived | Có batch/job | `50-deliverables/00-lists/BATCH-JOB-LIST.md` |
-| Inventory | Interface list | derived | Có system interface | `50-deliverables/00-lists/INTERFACE-LIST.md` |
-| Inventory | Event list | derived | Có event | `50-deliverables/00-lists/EVENT-LIST.md` |
-| Inventory | Database list | derived | Có DB/data store | `50-deliverables/00-lists/DATABASE-LIST.md` |
-| Inventory | File list | derived | Có file input/output | `50-deliverables/00-lists/FILE-LIST.md` |
-| Inventory | Mail list | derived | Có email output | `50-deliverables/00-lists/MAIL-LIST.md` |
-| Inventory | Notification list | derived | Có notification | `50-deliverables/00-lists/NOTIFICATION-LIST.md` |
-| Planning | Roadmap / milestone | `ROADMAP-`, `MS-` | Project triển khai theo phase/release | `55-planning/*` |
-| Execution | Task | `TASK-` | Khi có work phải thực thi | `60-tasks/*` |
-| Verification | Test strategy | `TEST-STRAT-` | Mọi project production | `70-verification/TEST-STRATEGY.md` |
-| Verification | Verification definition | `TEST-`, `PERF-`, `SEC-TEST-` | Theo requirement/deliverable | `70-verification/*` |
-| Operations | Deployment design | `DEP-` | Có deployable runtime | `80-operations/*` |
-| Operations | Observability / runbook | `OBS-`, `RUN-` | Production system | `80-operations/*` |
-| Change | Change request | `CR-` | Baseline object cần thay đổi | `85-change-management/*` |
-| Traceability | Coverage / impact view | derived | Mọi governed project | `90-traceability/*` |
+### 2.1 Common / Application Design
 
-## 3. Common Design vs Business Design
+Physical root: `40-design/10-common/`.
 
-Common Design là baseline kỹ thuật có phạm vi Project/Module/DeliverableType. Business Design kế thừa baseline đó và chỉ mô tả solution đặc thù. Ví dụ `API-DES-001` không cần định nghĩa lại pagination/error format vì mặc định kế thừa `API-STD-001`; `JOB-DES-001` kế thừa transaction/concurrency rule từ `TX-STD-001`.
+| Product | Prefix | Path | Applicability |
+|---|---|---|---|
+| Application Architecture | `APP-ARCH-` | `10-common/architecture/` | mọi app không-trivial |
+| Backend Architecture | `BE-ARCH-` | `10-common/backend/` | có backend |
+| Frontend Architecture | `FE-ARCH-` | `10-common/frontend/` | có frontend |
+| API Conventions | `API-STD-` | `10-common/api/` | có API |
+| Transaction/Concurrency Standard | `TX-STD-` | `10-common/backend/` | có write/persistence/job |
+| Authentication/Session | `AUTH-DES-` | `10-common/security/` | có authenticated user |
+| Authorization/Audit Enforcement | `SEC-DES-` | `10-common/security/` | có protected operations/audit |
 
-Một thay đổi Common Design phải được coi là change có blast radius lớn và impact-analysis theo `appliesTo`.
+Common Design chỉ chứa technical baseline có thể áp dụng qua nhiều business domains. Nó được business design/task kế thừa theo scope.
 
-## 4. Inventory list vs detailed specification
+### 2.2 Business / Domain Design
 
-List document không thay thế design spec. Nó là **index/coverage view** để trả lời: project hiện có bao nhiêu screen, batch, interface, file, mail, notification; mỗi output có ID gì; design/task/test/status ở đâu.
+Physical root: `40-design/20-business/`. Business branch luôn tổ chức `domain → artifact type`.
+
+| Scope | Product | Prefix | Path |
+|---|---|---|---|
+| Shared Domain | System/domain architecture | `ARCH-` | `20-business/00-shared-domain/architecture/` |
+| Shared Domain | Logical/physical DB design | `DBD-` | `20-business/00-shared-domain/data/` |
+| Shared Domain | Business configuration | `CFG-DES-` | `20-business/00-shared-domain/configuration/` |
+| Order | Solution decision | `DES-ORD-` | `20-business/order/decision/` |
+| Order | API specification | `API-DES-` | `20-business/order/api/` |
+| Order | Screen specification | `SCR-DES-` | `20-business/order/screen/` |
+| Order | Event specification | `EVT-DES-` | `20-business/order/event/` |
+| Inventory | Solution decision | `DES-INV-` | `20-business/inventory/decision/` |
+| Inventory | API specification | `API-DES-` | `20-business/inventory/api/` |
+| Inventory | Job specification | `JOB-DES-` | `20-business/inventory/job/` |
+| Shipping | Interface specification | `INT-DES-` | `20-business/shipping/integration/` |
+
+Nếu một design artifact chứa business entity/state/rule/ownership cụ thể thì không được đặt dưới `10-common`.
+
+## 3. Business/requirement catalog
+
+| Layer | Product | Prefix | Sample |
+|---|---|---|---|
+| Governance | Project scope | `PRJ-` | `README.md` |
+| Business | Goal | `GOAL-` | `10-goals/*` |
+| Business | Actor/term/context | `ACT-`, `TERM-` | `15-business-context/*` |
+| Business | Business Flow | `BF-` | `20-business-flows/*` |
+| Requirement | Functional Requirement | `REQ-` | `30-requirements/REQ-*` |
+| Requirement | Business Rule | `BR-` | semantic object/reference |
+| Requirement | Acceptance Criterion | `AC-` | semantic object/reference |
+| Requirement | NFR | `NFR-` | `30-requirements/non-functional/*` |
+| Requirement | Data Requirement | `DREQ-` | `30-requirements/data/*` |
+| Requirement | Integration Requirement | `IREQ-` | `30-requirements/integration/*` |
+| Requirement | Security Requirement | `SREQ-` | `30-requirements/security/*` |
+
+## 4. Deliverable and inventory catalog
+
+Detailed deliverables live in `50-deliverables/`. Type lists live in `50-deliverables/00-lists/` and should be generated from the Deliverable Registry in the SaaS.
+
+| Inventory View | Output types |
+|---|---|
+| `SCREEN-LIST.md` | Screen/Page |
+| `API-LIST.md` | API/Service contract |
+| `BATCH-JOB-LIST.md` | Batch/Job/Scheduler |
+| `INTERFACE-LIST.md` | External/System Interface |
+| `EVENT-LIST.md` | Event/Message |
+| `DATABASE-LIST.md` | Database/Schema/Data Store |
+| `FILE-LIST.md` | Import/Export File |
+| `MAIL-LIST.md` | Email |
+| `NOTIFICATION-LIST.md` | In-app/Push/System Notification |
+
+List là derived management view; detailed design vẫn nằm trong `40-design/20-business/<domain>/<artifact-type>/`.
+
+## 5. Remaining catalog
+
+| Layer | Product | Prefix / Location |
+|---|---|---|
+| Planning | Roadmap/Milestone | `ROADMAP-`, `MS-`, `55-planning/` |
+| Execution | Task | `TASK-`, `60-tasks/` |
+| Verification | Test Strategy / Verification | `TEST-STRAT-`, `TEST-`, `PERF-`, `SEC-TEST-`, `70-verification/` |
+| Operations | Deployment/Observability/Runbook | `DEP-`, `OBS-`, `RUN-`, `80-operations/` |
+| Change | Change Request | `CR-`, `85-change-management/` |
+| Traceability | Coverage/Impact Views | derived, `90-traceability/` |
+
+## 6. Applicability and coverage
 
 ```text
-SCREEN-LIST
-   ↓ points-to
-SCR-ORD-001
-   ↑ specified-by
-SCR-DES-001
+Not Evaluated
+   ├── Applicable → Draft → Baseline
+   └── Not Applicable + reason
 ```
 
-Trong SaaS thật, các list này nên generate từ Deliverable registry thay vì nhập tay.
+Design-ready tối thiểu yêu cầu:
 
-## 5. Applicability rule
+1. Functional requirements có acceptance criteria.
+2. NFR categories đã evaluate.
+3. Common Design baseline applicable đã Baseline hoặc explicitly waived.
+4. Business Design được phân đúng domain owner.
+5. Mọi planned deliverable có detailed design phù hợp type.
+6. Deliverable có task + verification coverage.
+7. Output inventory không có orphan item.
+8. Operations readiness được đánh giá trước production.
 
-Catalog là checklist có điều kiện, không phải bureaucracy bắt buộc.
+## 7. Classification test
 
-```text
-Not Evaluated → Applicable → Draft → Baseline
-              ↘ Not Applicable (reason required)
-```
+Khi phân loại một design document, hỏi theo thứ tự:
 
-Nếu project không có email/file/batch thì corresponding inventory type vẫn được evaluate nhưng có thể là `Not Applicable`, không cần tạo design/spec rỗng.
+1. Nội dung này có còn đúng nếu thay Order/Inventory bằng một domain hoàn toàn khác không? Nếu có, candidate là Common.
+2. Nội dung có business entity/state/rule/data ownership cụ thể không? Nếu có, là Business.
+3. Nếu Business, owner domain là ai? Đặt dưới domain đó.
+4. Nếu span nhiều business domains nhưng vẫn mang business meaning, đặt dưới `20-business/00-shared-domain`.
 
-## 6. Coverage rule
-
-Một project chỉ được coi là design-ready khi:
-
-1. Mọi Functional Requirement có Acceptance Criteria.
-2. NFR categories đã được review.
-3. Common Design baseline áp dụng cho project đã được baseline hoặc explicitly waived.
-4. Data ownership, retention và audit requirement rõ nếu có persistence.
-5. External integration có contract/error/retry/idempotency requirement.
-6. Mọi planned deliverable có design product phù hợp với type của nó.
-7. Inventory lists không có deliverable mồ côi: thiếu requirement/design/task/verification phải được flag.
-8. Verification strategy cover cả functional lẫn NFR quan trọng.
-9. Deployment/operations readiness được xem xét trước production release.
-
-## 7. Traceability không phải cây folder
-
-Folder chỉ giúp con người duyệt tài liệu. Quan hệ thật là graph. Common design có thể constrain hàng loạt business design/deliverable, trong khi một NFR có thể constrain API/DB/screen/job cùng lúc.
-
-Project Template của SaaS nên dùng catalog này để sinh checklist, output inventory và coverage report tự động.
+Folder là navigation; stable ID và relation graph vẫn là source of truth logic.
