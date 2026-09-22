@@ -1,79 +1,84 @@
-# Engineering Governance Platform — Domain Model
+# Software Project Governance SaaS — Domain Model
 
-## 1. Mục tiêu của domain model
+## 1. Mục tiêu
 
-Tài liệu này định nghĩa các object cốt lõi và quan hệ giữa chúng cho ứng dụng quản lý project knowledge, task và output. Mục tiêu là loại bỏ sự nhập nhằng giữa những khái niệm thường bị trộn vào nhau trong project software: file Markdown với requirement, task với deliverable, test với evidence, source file với system output, assignee với AI agent và roadmap với tasklist.
+Domain model này định nghĩa core objects cho một SaaS quản lý dự án phần mềm theo hướng traceability-first. Hệ thống phải quản lý được project knowledge, document, deliverable/output, task, change, verification và integration mà không phụ thuộc vào việc người thực hiện là human hay AI.
 
-Domain model phải giữ được một nguyên tắc: **project là đối tượng trung tâm; human, AI và service chỉ là member thực hiện work trên các object của project**.
+Nguyên tắc chính:
 
-## 2. Bounded Context
+1. SaaS account/user và project membership là hai khái niệm khác nhau.
+2. Project là boundary chính của governance data.
+3. Document là authoring container; semantic object có identity riêng.
+4. Deliverable là thứ project cần có; task là work để tạo/thay đổi nó.
+5. Relation là first-class canonical data.
+6. Baseline object thay đổi phải có version và impact analysis.
+7. External repository/folder là projection/integration, không phải source of truth song song không kiểm soát.
+8. Human, AI Agent và Service Account đều là principals có thể tham gia project qua permission.
 
-Đề xuất tách domain thành các bounded context sau:
+## 2. Bounded Contexts
 
 ```text
+Identity & SaaS
 Project Governance
-├── Project & Membership
-├── Knowledge Management
-├── Deliverable Management
-├── Work Management
-├── Traceability
-├── Verification
-└── Integration
+Template Management
+Knowledge & Documents
+Deliverable Management
+Work & Planning
+Traceability
+Change Management
+Verification
+Integration & Sync
+Audit
 ```
 
-Các bounded context có thể nằm trong một modular monolith ở MVP. Việc chia context nhằm giữ ownership và dependency rõ ràng, không phải để ép triển khai microservice.
+MVP có thể implement dưới dạng modular monolith. Bounded context dùng để phân responsibility, không bắt buộc microservice.
 
-## 3. Project & Membership
+## 3. Identity & SaaS
 
-### 3.1 Project
+### 3.1 User
 
-`Project` là aggregate root cấp cao nhất cho governance scope.
-
-```text
-Project
-- ProjectId
-- Key
-- Name
-- Description
-- Status
-- OwnerMemberId
-- CreatedAt
-- UpdatedAt
-```
-
-Status ban đầu:
+`User` là human SaaS account toàn cục.
 
 ```text
-Draft
-Active
-Archived
-```
-
-### 3.2 Member
-
-`Member` đại diện cho một actor có thể tương tác với project.
-
-```text
-Member
-- MemberId
-- ProjectId
-- MemberType
+User
+- UserId
+- Email
 - DisplayName
 - Status
-- Profile
+- CreatedAt
 ```
 
-`MemberType`:
+Một User có thể tạo hoặc tham gia nhiều Project.
+
+### 3.2 Principal
+
+Mọi actor có thể authenticate/act lên API được biểu diễn bởi `Principal`.
 
 ```text
-Human
-AI
-Service
+Principal
+- PrincipalId
+- PrincipalType: Human | AIAgent | Service
+- DisplayName
+- Status
+- Metadata
 ```
 
-Không tạo `AITask`, `HumanTask` hay lifecycle riêng theo member type. Task phải độc lập với loại assignee.
+Human principal liên kết tới `User`. AI/Service không cần SaaS login session như human.
 
-### 3.3 Role và Permission
+### 3.3 ProjectMembership
+
+```text
+ProjectMembership
+- ProjectMembershipId
+- ProjectId
+- PrincipalId
+- Status
+- JoinedAt
+```
+
+Task assignee trỏ tới ProjectMembership, không trỏ trực tiếp User hay AI-specific entity.
+
+### 3.4 Role / Permission
 
 ```text
 Role
@@ -85,8 +90,8 @@ Permission
 - PermissionCode
 - Description
 
-MemberRole
-- MemberId
+MembershipRole
+- ProjectMembershipId
 - RoleId
 
 RolePermission
@@ -94,29 +99,127 @@ RolePermission
 - PermissionCode
 ```
 
-Permission được enforce ở backend/application layer.
+Permission được enforce backend-side.
 
-## 4. Knowledge Management
+## 4. Project
 
-### 4.1 Document
+### 4.1 Project
 
-`Document` là container phục vụ authoring và navigation.
+```text
+Project
+- ProjectId
+- Key
+- Name
+- Description
+- Status: Draft | Active | Archived
+- OwnerPrincipalId
+- ProjectTemplateVersionId?
+- CreatedAt
+- UpdatedAt
+```
+
+`ProjectId` là technical immutable ID. `Key` là human-readable project key.
+
+### 4.2 ProjectBaseline
+
+```text
+ProjectBaseline
+- ProjectBaselineId
+- ProjectId
+- Key
+- Name
+- CreatedBy
+- CreatedAt
+- Status
+```
+
+Baseline cố định tập version của các object quan trọng tại một thời điểm.
+
+### 4.3 ProjectBaselineItem
+
+```text
+ProjectBaselineItem
+- ProjectBaselineId
+- ObjectType
+- ObjectId
+- ObjectVersionId
+```
+
+Baseline dùng cho reproducible export, release, audit và impact comparison.
+
+## 5. Template Management
+
+### 5.1 ProjectTemplate
+
+```text
+ProjectTemplate
+- ProjectTemplateId
+- Key
+- Name
+- Description
+- Status
+```
+
+### 5.2 ProjectTemplateVersion
+
+```text
+ProjectTemplateVersion
+- ProjectTemplateVersionId
+- ProjectTemplateId
+- Version
+- SchemaVersion
+- Definition
+- PublishedAt?
+```
+
+Definition có thể chứa document tree, object type policy, ID rules, relation vocabulary, validation policy, roles và export layout.
+
+### 5.3 DocumentTemplate
+
+```text
+DocumentTemplate
+- DocumentTemplateId
+- Key
+- Name
+- DocumentType
+- Status
+```
+
+### 5.4 DocumentTemplateVersion
+
+```text
+DocumentTemplateVersion
+- DocumentTemplateVersionId
+- DocumentTemplateId
+- Version
+- StructureDefinition
+- ContentTemplate
+- PublishedAt?
+```
+
+Document template có thể định nghĩa required sections và structured placeholders.
+
+## 6. Knowledge & Documents
+
+### 6.1 Document
 
 ```text
 Document
 - DocumentId
 - ProjectId
+- Key
 - ParentDocumentId?
 - Title
 - DocumentType
-- Format
+- DocumentTemplateVersionId?
 - Status
 - CurrentVersionId
+- SortOrder
 ```
 
-Document có thể là Markdown, rich text hoặc structured editor document. Domain không được giả định một document tương ứng đúng một requirement hay một design object.
+Document là authoring/navigation container.
 
-### 4.2 DocumentVersion
+### 6.2 DocumentVersion
 
 ```text
 DocumentVersion
@@ -124,33 +227,31 @@ DocumentVersion
 - DocumentId
 - VersionNumber
 - Content
-- CreatedBy
+- CreatedByPrincipalId
 - CreatedAt
 - ChangeSummary
 ```
 
-Document version khác Knowledge Object version. Một document có thể thay layout/wording mà không làm thay đổi semantic version của mọi object nằm trong đó.
+Document version độc lập với semantic object version.
 
-### 4.3 KnowledgeObject
-
-`KnowledgeObject` là semantic object có ID ổn định và có thể tham gia traceability graph.
+### 6.3 KnowledgeObject
 
 ```text
 KnowledgeObject
 - KnowledgeObjectId
 - ProjectId
-- ObjectType
 - Key
+- ObjectType
 - Title
 - Status
-- OwnerMemberId?
+- OwnerMembershipId?
 - CurrentVersionId
 ```
 
-Các `ObjectType` ban đầu:
+Initial object types:
 
 ```text
-BusinessGoal
+Goal
 BusinessCapability
 BusinessFlow
 Requirement
@@ -165,7 +266,7 @@ Policy
 Standard
 ```
 
-### 4.4 KnowledgeObjectVersion
+### 6.4 KnowledgeObjectVersion
 
 ```text
 KnowledgeObjectVersion
@@ -173,16 +274,14 @@ KnowledgeObjectVersion
 - KnowledgeObjectId
 - VersionNumber
 - Payload
-- CreatedBy
+- CreatedByPrincipalId
 - CreatedAt
 - BaselineAt?
 ```
 
-`Payload` có thể là JSONB theo schema của từng ObjectType. Mỗi type phải có schema validator riêng.
+Payload có thể dùng JSONB với schema per ObjectType.
 
-### 4.5 KnowledgePlacement
-
-Để một structured object có thể xuất hiện trong document mà không duplicate semantic source:
+### 6.5 KnowledgePlacement
 
 ```text
 KnowledgePlacement
@@ -194,13 +293,11 @@ KnowledgePlacement
 - SortOrder
 ```
 
-Document hiển thị object qua placement/reference. Nội dung canonical của metadata cần validate nằm trong KnowledgeObject/Version.
+Một object có thể xuất hiện trong nhiều document mà không duplicate canonical semantic state.
 
-## 5. Deliverable Management
+## 7. Deliverable Management
 
-### 5.1 Deliverable
-
-`Deliverable` là output mà project quyết định phải tồn tại.
+### 7.1 Deliverable
 
 ```text
 Deliverable
@@ -210,8 +307,8 @@ Deliverable
 - DeliverableType
 - Name
 - Status
-- OwnerMemberId?
-- CurrentVersion
+- OwnerMembershipId?
+- CurrentVersionId
 ```
 
 Types ban đầu:
@@ -226,51 +323,71 @@ Report
 Notification
 Interface
 DataObject
-DatabaseArtifact
+DatabaseObject
 Configuration
 DeploymentArtifact
 DocumentationDeliverable
 ```
 
-### 5.2 Deliverable lifecycle
-
-```text
-Planned
-  ↓
-Specified
-  ↓
-Implemented
-  ↓
-Verified
-  ↓
-Accepted
-  ↓
-Deprecated
-```
-
-State transition phải do domain policy quyết định, không chỉ là field editable trực tiếp.
-
-### 5.3 DeliverableVersion
-
-Deliverable version dùng để đại diện contract/revision của deliverable, không phải source code commit.
+### 7.2 DeliverableVersion
 
 ```text
 DeliverableVersion
 - DeliverableVersionId
 - DeliverableId
 - VersionNumber
-- Status
+- Payload
+- CreatedByPrincipalId
 - CreatedAt
 - BaselineAt?
 ```
 
-Ví dụ `API-P2P-007 v3` có thể được implemented bởi nhiều source artifacts ở cùng revision set.
+Deliverable version đại diện contract/revision của output, không phải source commit.
 
-## 6. Work Management
+### 7.3 Deliverable lifecycle
 
-### 6.1 Task
+```text
+Planned → Specified → Implemented → Verified → Accepted → Deprecated
+```
 
-`Task` là đơn vị work được giao cho member.
+State transition phải được application/domain policy validate.
+
+## 8. Work & Planning
+
+### 8.1 Roadmap hierarchy
+
+```text
+Roadmap
+  └── Phase
+       └── Milestone
+            └── Tasks / Outcomes
+```
+
+### 8.2 Milestone
+
+```text
+Milestone
+- MilestoneId
+- ProjectId
+- PhaseId?
+- Key
+- Name
+- Status
+- TargetDate?
+```
+
+### 8.3 MilestoneOutcome
+
+```text
+MilestoneOutcome
+- MilestoneId
+- DeliverableId
+- RequiredState
+```
+
+Progress milestone dựa trên outcome/deliverable, không chỉ task count.
+
+### 8.4 Task
 
 ```text
 Task
@@ -282,58 +399,48 @@ Task
 - Objective
 - Status
 - Priority
-- AssigneeMemberId?
+- AssigneeMembershipId?
 - MilestoneId?
-- CreatedBy
+- Version
+- CreatedByPrincipalId
 - CreatedAt
 - UpdatedAt
 ```
 
-### 6.2 Task lifecycle
+Task lifecycle:
 
 ```text
-Draft
-  ↓
-Ready
-  ↓
-InProgress
-  ↓
-Review
-  ↓
-Done
+Draft → Ready → InProgress → Review → Done
+          ↕          ↕
+        Blocked    Blocked
 ```
 
-`Blocked` là trạng thái có thể chuyển vào/ra từ Ready/InProgress/Review. `Cancelled` là terminal state khác Done.
+`Cancelled` là terminal state khác Done.
 
-Task không dùng các status `Implemented`, `Verified`, `Accepted`; đó là lifecycle của deliverable.
-
-### 6.3 TaskContext
-
-Không lưu `readSet`, `writeSet`, `verifySet` thành prose duy nhất trong description. Cần object hóa:
+### 8.5 TaskInput
 
 ```text
 TaskInput
 - TaskId
-- ObjectId
 - ObjectType
-- RequiredVersion?
-- Required: bool
-
-TaskScope
-- TaskId
-- TargetObjectId
-- TargetObjectType
-- Action
-
-TaskVerificationRequirement
-- TaskId
-- VerificationDefinitionId
-- Required: bool
+- ObjectId
+- RequiredObjectVersionId?
+- Required
 ```
 
-`TaskInput` có thể trỏ tới KnowledgeObject, Deliverable, Document, Standard hoặc external artifact tùy type policy.
+### 8.6 TaskScope
 
-### 6.4 TaskDependency
+```text
+TaskScope
+- TaskId
+- TargetObjectType
+- TargetObjectId
+- Action
+```
+
+Action ví dụ `Create`, `Modify`, `Remove`, `Verify`.
+
+### 8.7 TaskDependency
 
 ```text
 TaskDependency
@@ -342,67 +449,36 @@ TaskDependency
 - DependencyType
 ```
 
-Các dependency type ban đầu:
+### 8.8 TaskResult
 
 ```text
-FinishToStart
-ContractBaseline
-Information
-Environment
-```
-
-Không nên ép mọi dependency project thành task-to-task. Deliverable/knowledge dependency nằm trong Traceability context.
-
-## 7. Planning
-
-### 7.1 Roadmap
-
-```text
-Roadmap
-  └── Phase
-       └── Milestone
-```
-
-### 7.2 Milestone
-
-```text
-Milestone
-- MilestoneId
-- ProjectId
-- PhaseId
-- Name
+TaskResult
+- TaskResultId
+- TaskId
+- TaskVersion
+- SubmittedByPrincipalId
+- SubmittedAt
+- Summary
 - Status
-- TargetDate?
+- ExternalExecutionId?
 ```
 
-Milestone outcome không được tính chỉ bằng task count.
+Task result giữ actor và task version để audit external/AI update.
 
-### 7.3 MilestoneOutcome
+## 9. Traceability
 
-```text
-MilestoneOutcome
-- MilestoneId
-- DeliverableId
-- RequiredState
-```
+### 9.1 Global project-scoped object identity
 
-Ví dụ milestone hoàn thành khi ba deliverable đạt `Verified`, bất kể implementation được chia thành bao nhiêu task.
-
-## 8. Traceability
-
-### 8.1 TraceObject
-
-Không nhất thiết tạo bảng `TraceObject` vật lý nếu dùng polymorphic references, nhưng về conceptual model mọi object có thể tham gia graph phải có global project-scoped identity.
-
-Có thể dùng:
+Conceptually, mọi object tham gia graph có thể được biểu diễn bởi:
 
 ```text
 ObjectRef
+- ProjectId
 - ObjectType
 - ObjectId
 ```
 
-### 8.2 Relation
+### 9.2 Relation
 
 ```text
 Relation
@@ -413,14 +489,14 @@ Relation
 - RelationType
 - ToObjectType
 - ToObjectId
-- CreatedBy
+- CreatedByPrincipalId
 - CreatedAt
 - Metadata
 ```
 
-Relation là canonical edge. Reverse edge không lưu riêng.
+Relation là canonical edge. Reverse edge không lưu editable riêng.
 
-### 8.3 RelationTypeDefinition
+### 9.3 RelationTypeDefinition
 
 ```text
 RelationTypeDefinition
@@ -429,12 +505,13 @@ RelationTypeDefinition
 - AllowedToTypes[]
 - IsAcyclic
 - IsVersionSensitive
+- ImpactPropagationMode
 - Description
 ```
 
-Điều này cho phép validator chặn relation vô nghĩa như `Task specifies Requirement` nếu schema không cho phép.
+`ImpactPropagationMode` cho biết change ở source có cần đánh dấu target là potentially impacted hay không.
 
-### 8.4 Vocabulary ban đầu
+Initial vocabulary:
 
 ```text
 decomposes-to
@@ -453,13 +530,10 @@ owned-by
 assigned-to
 contained-in
 supersedes
+impacts
 ```
 
-## 9. Implementation Artifact
-
-### 9.1 Khái niệm
-
-`ImplementationArtifact` là technical/physical artifact thực tế được tạo ra bởi work.
+## 10. Implementation Artifact
 
 ```text
 ImplementationArtifact
@@ -468,13 +542,14 @@ ImplementationArtifact
 - ArtifactType
 - ExternalSystem
 - Repository
-- ExternalId / Path
+- PathOrExternalId
 - Revision
 - Checksum?
 - Metadata
+- CreatedAt
 ```
 
-Artifact types có thể gồm:
+Artifact types:
 
 ```text
 SourceFile
@@ -482,32 +557,26 @@ Commit
 PullRequest
 MigrationFile
 OpenApiDocument
-DatabaseMigration
 WorkflowDefinition
 ContainerImage
 DeploymentPackage
 GeneratedFile
+ExternalDocument
 ```
 
-Không đồng nhất `DatabaseMigration` artifact với deliverable `DatabaseArtifact`. Ví dụ table `purchase_orders` là deliverable; migration `20260922_CreatePurchaseOrders.cs` là implementation artifact.
+Deliverable khác ImplementationArtifact. Ví dụ API là deliverable; controller file, OpenAPI file và PR là implementation artifacts.
 
-### 9.2 TaskResult
+### 10.1 TaskResultArtifact
 
 ```text
-TaskResult
+TaskResultArtifact
 - TaskResultId
-- TaskId
-- SubmittedBy
-- SubmittedAt
-- Summary
-- Status
+- ArtifactId
 ```
 
-TaskResult liên kết tới artifact qua relation hoặc explicit join table. Human hoặc AI đều submit cùng schema.
+## 11. Verification
 
-## 10. Verification
-
-### 10.1 VerificationDefinition
+### 11.1 VerificationDefinition
 
 ```text
 VerificationDefinition
@@ -519,279 +588,339 @@ VerificationDefinition
 - Definition
 ```
 
-Types:
-
-```text
-UnitTest
-IntegrationTest
-ContractTest
-E2E
-ArchitectureTest
-StaticAnalysis
-SecurityScan
-ManualReview
-QualityGate
-```
-
-### 10.2 VerificationTarget
-
-```text
-VerificationTarget
-- VerificationDefinitionId
-- TargetObjectType
-- TargetObjectId
-```
-
-Target có thể là Requirement, AcceptanceCriterion, Deliverable hoặc một scope khác được policy cho phép.
-
-### 10.3 VerificationRun
+### 11.2 VerificationRun
 
 ```text
 VerificationRun
 - VerificationRunId
 - VerificationDefinitionId
-- TargetRevision
-- ExecutorMemberId?
-- ExternalRunId?
+- TargetObjectType
+- TargetObjectId
+- TargetObjectVersionId?
+- Revision?
+- ExecutedByPrincipalId?
+- ExecutedAt
 - Status
-- StartedAt
-- FinishedAt
+- ExternalRunId?
 ```
 
-Status:
-
-```text
-Queued
-Running
-Passed
-Failed
-Cancelled
-Error
-```
-
-### 10.4 Evidence
+### 11.3 Evidence
 
 ```text
 Evidence
 - EvidenceId
 - VerificationRunId
 - EvidenceType
-- Location
-- Hash?
-- Metadata
+- UriOrPayload
+- Checksum?
 ```
 
-Evidence có thể là test report, CI log, screenshot, static-analysis report hoặc manual review record.
+Test definition không phải evidence; evidence chỉ xuất hiện từ run cụ thể.
 
-Một `VerificationDefinition` không được tính là evidence. Chỉ `VerificationRun` gắn với target revision cụ thể mới có thể đóng góp vào trạng thái Verified.
+## 12. Change Management
 
-## 11. Change & Baseline
-
-### 11.1 Baseline
-
-`Baseline` là snapshot logic của các version được project chấp nhận làm reference.
-
-```text
-Baseline
-- BaselineId
-- ProjectId
-- Name
-- Type
-- CreatedAt
-- CreatedBy
-
-BaselineItem
-- BaselineId
-- ObjectType
-- ObjectId
-- VersionId
-```
-
-### 11.2 ChangeRequest
+### 12.1 ChangeRequest
 
 ```text
 ChangeRequest
 - ChangeRequestId
 - ProjectId
+- Key
 - Title
 - Reason
+- SourceType
+- SourceReference?
 - Status
-- RequestedBy
+- OwnerMembershipId?
+- CreatedByPrincipalId
 - CreatedAt
 ```
 
-Change Request không bắt buộc cho mọi edit. Nó dùng cho những thay đổi vượt scope hoặc làm thay đổi baseline/contract theo policy project.
-
-### 11.3 Impact
-
-Khi một version baseline thay đổi:
+Lifecycle:
 
 ```text
-Changed Object
-   ↓
-Traceability traversal
-   ↓
-Impacted Objects
-   ↓
-Impact Assessment
-   ↓
-Revalidation / Rework / No Impact
+Draft → ImpactAnalysis → Review → Approved → Applying → Verified → Closed
+                       ↘ Rejected
 ```
 
-`ImpactRecord` nên lưu quyết định để có audit trail.
-
-## 12. Các invariant quan trọng
-
-Các invariant sau phải được enforce ở domain/application layer:
-
-1. `Project.Key` unique.
-2. Object key unique trong project theo namespace policy.
-3. Member type không làm thay đổi Task schema.
-4. Một Task chỉ có tối đa một primary assignee tại một thời điểm trong MVP.
-5. Relation phải tuân `RelationTypeDefinition`.
-6. Reverse relation không được lưu như independent editable edge.
-7. Baseline version immutable.
-8. Task chỉ được chuyển `Ready` khi Definition of Ready validator pass.
-9. Deliverable chỉ được chuyển `Specified` khi mandatory specifications tồn tại.
-10. Deliverable chỉ được chuyển `Implemented` khi implementation coverage policy pass.
-11. Deliverable chỉ được chuyển `Verified` khi verification policy pass trên current deliverable revision.
-12. Deliverable `Accepted` phải thuộc một accepted baseline/release decision.
-13. Verification Definition không được dùng trực tiếp làm evidence.
-14. Task Done phải có TaskResult hoặc explicit no-output completion reason.
-15. Không cho cycle ở relation type được định nghĩa `IsAcyclic = true`.
-
-## 13. Logical data model tối thiểu cho MVP
-
-Một relational implementation trên PostgreSQL có thể bắt đầu với các bảng:
+### 12.2 ChangeItem
 
 ```text
-projects
-members
-roles
-permissions
-member_roles
-role_permissions
-
-documents
-document_versions
-knowledge_objects
-knowledge_object_versions
-knowledge_placements
-
-deliverables
-deliverable_versions
-
-tasks
-task_inputs
-task_scopes
-task_dependencies
-task_results
-
-phases
-milestones
-milestone_outcomes
-
-relations
-relation_type_definitions
-
-implementation_artifacts
-
-verification_definitions
-verification_targets
-verification_runs
-evidence
-
-baselines
-baseline_items
-change_requests
-impact_records
+ChangeItem
+- ChangeItemId
+- ChangeRequestId
+- TargetObjectType
+- TargetObjectId
+- FromVersionId?
+- ProposedPayloadOrPatch
+- ChangeType
 ```
 
-Không cần graph database ở MVP. Với indexes trên `(project_id, from_object_type, from_object_id)` và `(project_id, to_object_type, to_object_id)`, PostgreSQL recursive CTE đủ cho traversal ban đầu.
-
-## 14. Module dependency đề xuất
+### 12.3 ImpactItem
 
 ```text
-ProjectMembership
-      ↑
-Knowledge      Deliverables
-      \          /
-       Traceability
-          ↑
-       WorkManagement
-          ↑
-       Verification
-          ↑
-       Integration
+ImpactItem
+- ImpactItemId
+- ChangeRequestId
+- ObjectType
+- ObjectId
+- CurrentVersionId?
+- ImpactPath
+- ImpactType
+- Disposition
+- Rationale?
+- OwnerMembershipId?
+- Status
 ```
 
-Cách dependency thực tế nên được giữ qua application contracts/domain references thay vì shared database access tùy tiện.
-
-Một cách modular-monolith dễ kiểm soát:
+Disposition:
 
 ```text
-src/
-  ProjectMembership/
-  Knowledge/
-  Deliverables/
-  WorkManagement/
-  Traceability/
-  Verification/
-  Integration/
+UpdateRequired
+ReviewRequired
+RevalidationRequired
+ReplanRequired
+NoChangeRequired
+Obsolete
 ```
 
-Mỗi module có Application, Domain và Infrastructure riêng nếu dùng Clean Architecture/modular architecture.
+### 12.4 Staleness
 
-## 15. AI integration nằm ở đâu
+Version-sensitive relation/input cần có khả năng xác định rằng consumer vẫn trỏ version cũ sau khi upstream baseline thay đổi.
 
-AI không phải bounded context cốt lõi. Nó nằm trong Integration và Membership.
+Hệ thống không bắt buộc tự sửa downstream object. Nó phải phát hiện, mark stale và yêu cầu disposition/action theo policy.
+
+## 13. Integration & Sync
+
+### 13.1 IntegrationConnection
 
 ```text
-Member(type=AI)
-        ↓ assigned-to
-      Task
-        ↓
-Task Execution Port
-        ↓
-AI Executor Adapter
-        ↓
-TaskResult + ImplementationArtifact
+IntegrationConnection
+- IntegrationConnectionId
+- ProjectId
+- IntegrationType
+- Provider
+- ExternalResourceId
+- Status
+- Configuration
 ```
 
-Core domain chỉ biết member được phép execute task và đã submit TaskResult. Model/provider/prompt/runtime là concern của adapter/profile.
+Ví dụ GitHub repository binding hoặc external CI connection.
 
-Nhờ vậy có thể thay:
+### 13.2 ExportSnapshot
 
 ```text
-OpenAI
-Claude
-Local model
-Human developer
-External automation
+ExportSnapshot
+- ExportSnapshotId
+- ProjectId
+- ProjectBaselineId?
+- SchemaVersion
+- GeneratedAt
+- GeneratedByPrincipalId
+- ManifestChecksum
+- Status
 ```
 
-mà không thay Task, Deliverable hoặc Traceability domain.
-
-## 16. Kết luận
-
-Domain model phải bảo vệ ba separation quan trọng nhất:
+### 13.3 ExportSnapshotItem
 
 ```text
-Knowledge ≠ Document
-Work ≠ Deliverable
-Verification Definition ≠ Verification Evidence
+ExportSnapshotItem
+- ExportSnapshotId
+- ObjectType
+- ObjectId
+- ObjectVersionId
+- ExportPath
+- Checksum
 ```
 
-và một nguyên tắc xuyên suốt:
+### 13.4 SyncProposal
+
+Two-way sync không sửa canonical data trực tiếp. External changes phải tạo proposal/change set.
 
 ```text
-Human / AI / Service
-       ↓
-     Member
-       ↓
-   performs Task
-       ↓
-changes Project Objects
+SyncProposal
+- SyncProposalId
+- ProjectId
+- IntegrationConnectionId
+- SourceSnapshotId?
+- Status
+- DetectedAt
+- SubmittedByPrincipalId
 ```
 
-Ứng dụng vì vậy không phải một AI coding orchestrator. Nó là project governance platform có structured knowledge, planning, traceability, output inventory và verification; AI chỉ là một trong các member có thể tham gia thực thi work trong hệ thống đó.
+Sync proposal có thể sinh `ChangeRequest` sau validation/conflict analysis.
+
+## 14. Machine Authentication
+
+### 14.1 MachineCredential
+
+```text
+MachineCredential
+- MachineCredentialId
+- PrincipalId
+- CredentialType
+- SecretHash / PublicKeyReference
+- ExpiresAt?
+- RevokedAt?
+- CreatedAt
+```
+
+Plaintext API token chỉ được trả về lúc tạo và không lưu lại dạng có thể đọc.
+
+### 14.2 CredentialScope
+
+```text
+CredentialScope
+- MachineCredentialId
+- ProjectId
+- Scope
+```
+
+Scopes ban đầu:
+
+```text
+project:read
+document:read
+object:read
+task:read
+task:update-status
+task:submit-result
+artifact:create
+verification:submit
+change:create
+```
+
+### 14.3 APICommandLog
+
+```text
+APICommandLog
+- CommandId
+- ProjectId
+- PrincipalId
+- CommandType
+- IdempotencyKey?
+- TargetObjectType?
+- TargetObjectId?
+- Result
+- CreatedAt
+```
+
+External agent/service actions phải auditable và hỗ trợ idempotency khi cần.
+
+## 15. Audit
+
+### 15.1 AuditEvent
+
+```text
+AuditEvent
+- AuditEventId
+- ProjectId
+- ActorPrincipalId
+- EventType
+- ObjectType
+- ObjectId
+- BeforeVersion?
+- AfterVersion?
+- Metadata
+- CreatedAt
+```
+
+Các event tối thiểu cần audit:
+
+- role/permission change;
+- baseline;
+- status transition;
+- relation change;
+- machine credential lifecycle;
+- external command;
+- change request decision;
+- sync/import application.
+
+## 16. Identity và key strategy
+
+Mỗi traceable object có:
+
+```text
+Technical ID: immutable UUID/ULID
+Human key: project-scoped stable key
+```
+
+Ví dụ:
+
+```text
+ProjectId = 01K...
+Project.Key = ERP-LAB
+RequirementId = 01K...
+Requirement.Key = REQ-P2P-012
+```
+
+Human key có thể theo rule từ ProjectTemplate nhưng không dùng làm database primary key.
+
+## 17. Source-of-truth policy
+
+Canonical data cho governance nằm trong SaaS database.
+
+```text
+SaaS Canonical Model
+   ↓ export/project snapshot
+Repository / Local Folder
+   ↓ optional detected changes
+Sync Proposal
+   ↓ review/conflict resolution
+Change Request
+   ↓ approved application
+New SaaS Versions/Baseline
+```
+
+Không thiết kế flow `file local sửa → overwrite database` trực tiếp.
+
+## 18. Conceptual ER view
+
+```text
+User ─────── Principal(Human)
+                  │
+                  ├── ProjectMembership ─── Project
+                  │                             │
+AI Principal ─────┘                             ├── Documents ── Versions
+Service Principal ──────────────────────────────┤
+                                                ├── Knowledge Objects ── Versions
+                                                ├── Deliverables ── Versions
+                                                ├── Tasks ── Inputs/Scopes/Results
+                                                ├── Relations
+                                                ├── Milestones
+                                                ├── Verification Runs/Evidence
+                                                ├── Change Requests/Impact Items
+                                                ├── Integration Connections
+                                                └── Baselines/Export Snapshots
+```
+
+## 19. Các invariant quan trọng
+
+1. Object key unique trong project.
+2. Object technical ID immutable.
+3. Relation không được cross project nếu relation schema không cho phép.
+4. Reverse relation không có editable source thứ hai.
+5. Baseline version immutable.
+6. Task transition đi qua domain command, không patch raw status.
+7. Machine principal chỉ thực hiện action trong project/scope được cấp.
+8. Deliverable Verified phải có successful verification trên target version/revision hợp lệ.
+9. Sync conflict không được silent overwrite.
+10. Baseline change phải tạo impact analysis khi relation policy yêu cầu.
+11. Task Done và Deliverable Accepted là hai lifecycle độc lập.
+12. Document version và semantic object version không bị đồng nhất.
+
+## 20. Vị trí của AI trong model
+
+AI là một `Principal(type=AIAgent)` và trở thành ProjectMember khi được add vào project.
+
+```text
+AIAgent Principal
+   ↓ ProjectMembership + Role/Scopes
+Task
+   ↓ context API
+External Agent Execution
+   ↓ authenticated command API
+TaskResult / Artifact / Verification / ChangeRequest
+```
+
+Không có `AITask`, không có `AIRequirement`, không có `AIProject`. Domain software project management phải hoạt động đầy đủ khi project không có AI member nào.
