@@ -180,6 +180,10 @@ Canonical product requirements: SaaS tenancy, project/document templates, Goal�
 
 Canonical domain model: User, Principal, ProjectMembership, Project, Template, Document, KnowledgeObject, Deliverable, Task, Relation, Baseline, ChangeRequest, Verification, Integration, MachineCredential và Audit.
 
+### [docs/DOCUMENT-ENTITY-MODEL.md](./docs/DOCUMENT-ENTITY-MODEL.md)
+
+Sơ đồ quan hệ entity cho document domain: DocumentTemplate, TemplateSection, Document, DocumentVersion, DocumentSection, KnowledgeObject, KnowledgeObjectVersion, KnowledgePlacement và ObjectRelation. File có cả conceptual diagram và logical ERD render trực tiếp bằng Mermaid trên GitHub.
+
 ### [INTEGRATION-SYNC-CHANGE-MANAGEMENT.md](./INTEGRATION-SYNC-CHANGE-MANAGEMENT.md)
 
 Chi tiết protocol export project folder, repository binding, task context API, agent/service authentication, external artifact ingestion, two-way sync, conflict detection và change/impact management.
