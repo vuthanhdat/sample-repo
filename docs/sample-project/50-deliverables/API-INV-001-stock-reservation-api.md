@@ -3,39 +3,48 @@ id: API-INV-001
 type: Deliverable
 subtype: API
 status: Specified
-version: 1
+version: 2
 title: Stock Reservation API
 relations:
   introducedBy:
     - DES-INV-001
+  specifiedBy:
+    - API-DES-002
   implementsRequirements:
     - REQ-INV-001
+  constrainedBy:
+    - NFR-PERF-001
+    - NFR-REL-001
+    - SREQ-001
   implementedBy:
     - TASK-INV-BE-001
   verifiedBy:
     - TEST-INV-001
+    - PERF-001
+    - REL-TEST-001
+    - SEC-TEST-001
 ---
 
 # API-INV-001 — Stock Reservation API
 
 ## Purpose
 
-Cung cấp contract để reserve và release stock theo Order.
+Cung cấp canonical boundary để reserve/release/query Stock Reservation theo Order. Detailed contract nằm ở `API-DES-002`.
 
-## Planned operations
+## Operations
 
-- `POST /stock-reservations`
-- `POST /stock-reservations/{reservationId}/release`
-- `GET /stock-reservations/{reservationId}`
+- `POST /api/stock-reservations`
+- `POST /api/stock-reservations/{reservationId}/release`
+- `GET /api/stock-reservations/{reservationId}`
 
-## Contract responsibilities
+## Responsibilities
 
-- Kiểm tra available stock.
-- Reserve stock theo nguyên tắc all-or-nothing.
-- Hỗ trợ idempotency.
-- Release reservation an toàn khi retry.
-- Không cho available stock âm.
+- Enforce all-or-nothing reservation policy.
+- Protect non-negative available stock under concurrency.
+- Support idempotent reserve/release retry.
+- Persist data qua `DB-INV-001`.
+- Meet linked performance/reliability/security NFRs.
 
 ## Traceability
 
-`DES-INV-001` → `API-INV-001` → `TASK-INV-BE-001` → `TEST-INV-001`.
+`REQ-INV-001` → `DES-INV-001` → `API-INV-001` ← `API-DES-002` → implementation/verification tasks.
