@@ -2,764 +2,650 @@
 
 ## 1. Product Definition
 
-Sản phẩm là một **SaaS quản lý dự án phần mềm** tập trung vào việc quản lý có cấu trúc toàn bộ chuỗi từ mục tiêu của project đến requirement, design, deliverable/output, task, implementation artifact, verification và change impact.
+Sản phẩm là một **SaaS quản lý dự án phần mềm theo hướng traceability-first**. Core value không phải là lưu nhiều file Markdown, mà là quản lý có cấu trúc toàn bộ project knowledge, document structure, requirement, design, deliverable/output, task, verification, version, change và quan hệ giữa chúng để có thể query coverage và impact một cách máy móc.
 
-Sản phẩm không thay thế hoàn toàn source control, CI/CD hay issue tracker. Giá trị cốt lõi của nó là tạo ra một **system of record cho project knowledge + planned outputs + execution + traceability**, sau đó tích hợp với repository, CI và AI/human workers bên ngoài.
+Sản phẩm phải cho phép user tạo một project, CRUD một cây folder/document tương tự một repository documentation tree, tạo các semantic/software-project objects bên trong project, liên kết chúng bằng typed relations và đánh giá ảnh hưởng khi một entity thay đổi.
 
-Mỗi user SaaS có thể tạo và tham gia nhiều project. Mỗi project có cấu trúc document được khởi tạo từ template. Các object quan trọng trong project đều có ID ổn định và liên kết với nhau bằng relation có cấu trúc, để có thể drill-down từ business goal đến task và trace ngược từ task/output lên requirement/goal.
+`docs/sample-project/` trong repository này chỉ là **reference/acceptance fixture**. Nó minh họa một cấu trúc tài liệu mà app phải có thể tạo/quản lý/export; nội dung sample không phải requirement source của app.
 
-```text
-User / Account
-   ↓
-Projects
-   ↓
-Project Template
-   ↓
-Goal / Scope
-   ↓
-Requirement / Rule / Acceptance Criterion
-   ↓
-Design Decision / Specification
-   ↓
-Deliverable / Output
-   ↓
-Task
-   ↓
-Implementation Artifact
-   ↓
-Verification / Evidence
-```
+Sản phẩm không thay thế source control, CI/CD hay issue tracker. SaaS là system of record cho governance/semantic project state; repository là system of record cho source code; CI provider là system of record cho CI execution result.
 
-AI không phải domain trung tâm. Human, AI Agent và Service Account là các actor có thể tham gia project thông qua permission và API. AI có thể đọc context của task, cập nhật trạng thái, submit result hoặc artifact, nhưng không được có schema/task lifecycle riêng chỉ vì nó là AI.
+## 2. Core mental model
 
-## 2. SaaS và tenancy
-
-### 2.1 User
-
-`User` là tài khoản đăng nhập vào SaaS. Một user có thể:
-
-- tạo nhiều project;
-- tham gia project do user khác tạo;
-- có role khác nhau ở từng project;
-- sở hữu hoặc quản trị project;
-- tạo credential/integration theo quyền được cấp.
-
-### 2.2 Project
-
-`Project` là boundary chính của dữ liệu và governance. Document, knowledge object, deliverable, task, relation, milestone, change request, verification và project member đều thuộc một project.
-
-Mọi API và query phải enforce project boundary. Không được để ID của project A có thể được dùng để đọc/sửa object của project B chỉ vì caller biết ID đó.
-
-### 2.3 Project Member
-
-Project member không đồng nghĩa với SaaS user. Một project có thể chứa ba loại principal:
+Ứng dụng phải tách hai cấu trúc:
 
 ```text
-Project Member
-├── Human Member  → liên kết tới SaaS User
-├── AI Agent      → machine principal
-└── Service       → machine principal / integration
+Project Structure Tree                     Traceability Graph
+----------------------                     ------------------
+Folder / Document hierarchy                Typed relations among traceable entities
+navigation / ordering / export path        dependency / coverage / impact / backlinks
+
+Project                                    Goal / Flow / Requirement / Document
+└── Folder                                 Design / Deliverable / Task / Verification
+    ├── Document                           Artifact / Milestone / Change
+    └── Folder                                         ↕
+        └── Document                                  Relation
 ```
 
-Task chỉ biết assignee là một `ProjectMember`. Việc member là human hay AI không làm thay đổi core task model.
+Folder/document parent-child **không phải** semantic relation. Move/rename/reorder một node chỉ thay đổi structure/navigation, trừ khi một explicit policy nói export path là contract.
 
-## 3. Project Template và Document Template
+## 3. SaaS và tenancy
 
-### 3.1 Project Template
+### 3.1 User
 
-Khi tạo project, user có thể chọn một `ProjectTemplate`. Template xác định baseline structure của project, ví dụ:
+`User` là human SaaS account. Một user có thể tạo nhiều project, tham gia project của người khác và có role khác nhau ở từng project.
+
+### 3.2 Project
+
+`Project` là boundary chính của dữ liệu. Structure nodes, documents, semantic objects, deliverables, tasks, relations, milestones, baselines, verification, change requests và memberships đều thuộc một project.
+
+Mọi query/command phải enforce project boundary. Cross-project relation mặc định bị cấm.
+
+### 3.3 Principal và membership
+
+Actor trong project:
 
 ```text
-Software Project Standard
-├── 00 Project Governance
-├── 10 Goals & Scope
-├── 20 Requirements
-├── 30 Architecture & Design
-├── 40 Deliverables
-├── 50 Planning & Tasks
-├── 60 Verification
-└── 70 Change Management
+Principal
+├── Human        → linked to User
+├── AIAgent      → machine principal
+└── Service      → machine principal
+        ↓
+ProjectMembership
+        ↓
+Role / Permission
 ```
 
-Project template có thể định nghĩa:
+Task assignee trỏ tới `ProjectMembership`, không trỏ trực tiếp `User`. AI không có task schema riêng.
 
-- folder/document tree mặc định;
-- document templates bắt buộc hoặc tùy chọn;
-- object types được phép;
-- ID prefix/rule;
+## 4. Project Template, Structure Template và Document Template
+
+### 4.1 Project Template
+
+`ProjectTemplateVersion` định nghĩa baseline policy khi khởi tạo project:
+
+- structure template tree;
+- document templates bắt buộc/tùy chọn;
+- enabled traceable entity types;
+- ID/key rules;
 - relation vocabulary;
-- lifecycle policy;
+- lifecycle/validation policy;
 - required design products theo deliverable type;
-- Definition of Ready / Done policy;
-- validation rules;
-- role/permission presets;
+- Definition of Ready/Done;
+- role presets;
 - export layout.
 
-Template chỉ là điểm khởi tạo và policy definition. Sau khi project được tạo, project giữ reference tới template version đã dùng để đảm bảo reproducibility.
+Project phải giữ reference tới exact template version đã dùng.
 
-### 3.2 Document Template
+### 4.2 Structure Template Tree
 
-Mỗi document có thể được tạo từ template, ví dụ:
-
-- Project Charter;
-- Goal & Scope;
-- Functional Requirements;
-- Non-functional Requirements;
-- Architecture Overview;
-- System Design;
-- Screen Specification;
-- API Specification;
-- Batch/Job Specification;
-- Data Specification;
-- Test Strategy;
-- Change Request;
-- Release/Milestone Plan.
-
-Document template phải có thể chứa structured placeholders hoặc section definitions, không chỉ là đoạn Markdown copy sẵn.
-
-Ví dụ template API Specification có thể yêu cầu:
+Project template phải biểu diễn được cả folder và document nodes:
 
 ```text
-Overview
-Related Requirements
-Request Contract
-Response Contract
-Authorization
-Validation Rules
-Error Cases
-Idempotency
-Observability
-Related Deliverable
-Verification Requirements
+ProjectStructureTemplateNode
+├── FolderTemplateNode
+└── DocumentTemplateNode → DocumentTemplateVersion
 ```
 
-### 3.3 Document và semantic object phải tách biệt
+Khi instantiate project, template nodes sinh ra `ProjectStructureNode` thực tế. Template chỉ là nguồn khởi tạo/policy, không phải nơi lưu runtime project state.
 
-Document là container phục vụ authoring/navigation. Goal, Requirement, Design Decision, Deliverable hay Acceptance Criterion là semantic objects có ID và lifecycle riêng.
+### 4.3 Document Template
 
-Một document có thể chứa nhiều object. Một object có thể được reference/render ở nhiều document mà không duplicate canonical metadata.
+`DocumentTemplateVersion` định nghĩa structure/content cho một document, ví dụ Requirement Specification, API Specification, Screen Specification, Test Strategy.
 
-## 4. ID và Identity Model
+Template có thể định nghĩa required sections, optional sections, structured placeholders, allowed embedded object types và validation rules.
 
-Mọi object có thể tham gia planning hoặc traceability phải có hai loại identity:
+## 5. Project Structure Tree — functional requirements
 
-1. `id`: immutable technical ID, ví dụ UUID/ULID, dùng trong database/API.
-2. `key`: human-readable project-scoped key, dùng trong tài liệu và giao tiếp.
+### 5.1 Node types
 
-Ví dụ:
+MVP có hai node type:
 
 ```text
-GOAL-001
-BF-P2P-001
-REQ-P2P-012
-BR-P2P-006
-AC-P2P-012-01
-DES-P2P-005
-API-P2P-007
-SCR-P2P-003
-TASK-P2P-BE-042
-VER-P2P-012
-CR-2026-004
+Folder
+Document
 ```
 
-Key phải unique trong project và có thể được sinh theo rule của template. Khi object đã baseline/reference rộng rãi, key không nên bị đổi tùy ý; rename title không làm đổi identity.
+Folder không phải Document. Document node trỏ tới đúng một `Document`. Một Document trong MVP có tối đa một primary structure node; alias/reference node có thể bổ sung sau.
 
-## 5. Drill-down model: Goal đến Task
+### 5.2 CRUD operations
 
-Ứng dụng phải cung cấp một hierarchy view để người dùng có thể drill-down, nhưng canonical model là graph chứ không ép mọi thứ vào một cây duy nhất.
+User có quyền phải có thể:
 
-Một flow điển hình:
+- create root/sub-folder;
+- create document node từ blank hoặc DocumentTemplateVersion;
+- rename node;
+- move node sang parent khác;
+- reorder siblings;
+- archive/restore node;
+- delete draft/unreferenced node theo policy;
+- copy structure subtree từ template khi được phép;
+- query tree hoặc subtree;
+- resolve canonical path hiện tại.
+
+Move/rename node không làm đổi `DocumentId`, `Document.Key` hoặc semantic object IDs bên trong document.
+
+### 5.3 Delete policy
+
+Hard delete chỉ áp dụng cho object chưa baseline và không có reference/audit requirement. Với object đã baseline hoặc được reference, hệ thống phải archive/deprecate/supersede theo lifecycle thay vì xóa mất lịch sử.
+
+## 6. Document & Knowledge Management
+
+### 6.1 Document
+
+Document là authoring container và là một traceable entity. User phải có thể:
+
+- create blank/from template;
+- edit content;
+- manage sections;
+- save version/history;
+- compare versions;
+- baseline/supersede theo permission;
+- search theo text/key/type/status/owner;
+- view placements/backlinks/relations;
+- archive/restore.
+
+### 6.2 Document version và semantic version tách biệt
+
+Document wording/layout thay đổi có thể tạo `DocumentVersion` mà không làm tăng version của mọi semantic object được render trong document.
+
+Ngược lại, khi Requirement đổi business meaning, phải tạo semantic object version mới dù surrounding document content có thể gần như không đổi.
+
+### 6.3 Knowledge Object
+
+Initial structured types:
+
+- Goal;
+- BusinessCapability;
+- BusinessFlow;
+- Requirement;
+- BusinessRule;
+- AcceptanceCriterion;
+- DesignDecision;
+- DesignSpecification;
+- ArchitectureRule;
+- DataSpecification;
+- InterfaceContract;
+- Policy;
+- Standard.
+
+Một KnowledgeObject có stable ID/key và version riêng.
+
+### 6.4 Knowledge Placement
+
+Một KnowledgeObject có thể được render/reference ở nhiều document mà không duplicate canonical state.
+
+```text
+KnowledgeObject
+   ├── Placement in Requirement Document
+   ├── Placement in API Design Document
+   └── Placement in Test Document
+```
+
+Placement là authoring concern, không phải semantic traceability edge.
+
+## 7. Global traceable entities
+
+Traceability Graph không được giới hạn ở `KnowledgeObject`. Tối thiểu các entity sau phải có thể là relation endpoint:
+
+- Document;
+- KnowledgeObject;
+- Deliverable;
+- Task;
+- VerificationDefinition;
+- Milestone/Phase khi cần planning relation;
+- ImplementationArtifact;
+- ChangeRequest;
+- ProjectBaseline/ExportSnapshot nếu policy cần.
+
+Mỗi traceable entity có technical ID immutable. Entity được giao tiếp thường xuyên với user phải có project-scoped stable human key.
+
+## 8. Traceability Relation Management
+
+### 8.1 Relation CRUD
+
+User/service có permission phải có thể:
+
+- create relation;
+- validate source/target/type;
+- update allowed metadata;
+- delete relation theo lifecycle/audit policy;
+- query outbound relations;
+- query inbound/reverse relations;
+- query transitive graph với depth/type filters;
+- query backlinks;
+- inspect relation provenance/created-by;
+- inspect version sensitivity/staleness.
+
+Reverse relation là generated view, không lưu editable duplicate edge.
+
+### 8.2 Canonical vocabulary
+
+Initial canonical directions:
+
+```text
+decomposes-to  Goal/Capability/Flow/Requirement → lower-level semantic object
+governed-by    Requirement/Deliverable           → BusinessRule/Policy/Standard
+accepted-by    Requirement                       → AcceptanceCriterion
+satisfied-by   Requirement                       → DesignDecision/DesignSpecification
+requires       Requirement                       → Deliverable
+specifies      DesignSpecification               → Deliverable
+implements     Task                              → Deliverable
+produces       Task/TaskResult                   → ImplementationArtifact
+verifies       VerificationDefinition            → Requirement/Deliverable
+depends-on     Task/Deliverable/DesignSpec       → prerequisite entity
+references     Document/traceable entity         → traceable entity
+supersedes     traceable identity/version         → older identity/version where applicable
+impacts        ChangeRequest/ImpactItem           → traceable entity
+```
+
+Reverse labels như `required-by`, `specified-by`, `implemented-by`, `verified-by` được generated.
+
+`contained-in` không dùng để mô tả folder/document hierarchy; structure tree có model riêng.
+
+### 8.3 Relation type definition
+
+Mỗi relation type định nghĩa ít nhất:
+
+- canonical name;
+- reverse display name;
+- allowed source types;
+- allowed target types;
+- acyclic policy;
+- version sensitivity;
+- impact propagation mode;
+- impact direction;
+- optional cardinality/uniqueness constraints.
+
+## 9. Goal → Design → Deliverable → Task model
+
+Typical chain:
 
 ```text
 Goal
   ↓ decomposes-to
-Business Capability / Flow
+Business Flow / Capability
   ↓ decomposes-to
 Requirement
   ├── governed-by → Business Rule
-  └── accepted-by → Acceptance Criterion
-  ↓ satisfied-by
-Design Decision
-  ↓ introduces
-Deliverable
-  ↓ specified-by
+  ├── accepted-by → Acceptance Criterion
+  ├── satisfied-by → Design
+  └── requires → Deliverable
+
 Design Specification
-  ↓ implemented-by
+  └── specifies → Deliverable
+
 Task
-```
+  └── implements → Deliverable
 
-Task là đơn vị execution thấp nhất trong planning model. Source files, commits, PRs hay CI runs là implementation/evidence objects, không phải task con bắt buộc.
-
-Ứng dụng phải cho phép:
-
-- drill-down từ Goal xuống Task;
-- trace-up từ Task lên Goal;
-- xem coverage tại từng tầng;
-- phát hiện object bị orphan;
-- phát hiện requirement chưa có design/output/task;
-- phát hiện task không có upstream reason.
-
-## 6. Core Functional Areas
-
-### 6.1 Project Management
-
-- Create/archive project.
-- Project settings.
-- Project template selection.
-- Project member management.
-- Role/permission.
-- Activity/audit history.
-
-### 6.2 Document & Knowledge Management
-
-- Document tree.
-- Create document from template.
-- Rich text/Markdown authoring.
-- Structured object insertion/reference.
-- Version history.
-- Baseline/versioning.
-- Search by text, ID, type, status, owner.
-- Backlink/reference view.
-
-Structured object types ban đầu:
-
-- Goal.
-- Business Capability.
-- Business Flow.
-- Requirement.
-- Business Rule.
-- Acceptance Criterion.
-- Design Decision.
-- Design Specification.
-- Architecture Rule.
-- Data Specification.
-- Interface Contract.
-- Policy/Standard.
-
-### 6.3 Deliverable / Output Management
-
-Deliverable là output mà project quyết định phải tồn tại.
-
-Types ban đầu:
-
-- Screen.
-- API.
-- Batch/Job.
-- Event.
-- File.
-- Report.
-- Notification.
-- Interface.
-- Data Object.
-- Database Object.
-- Configuration.
-- Deployment Artifact.
-- Documentation Deliverable.
-
-Mỗi deliverable phải có ID/key, type, name, owner, lifecycle, version, upstream requirement/design, specification coverage, implementing task và verification coverage.
-
-### 6.4 Task & Planning
-
-- Task CRUD.
-- Task dependency.
-- Assignee.
-- Priority.
-- Phase/Milestone/Roadmap.
-- Read set / required context.
-- Write scope / target deliverables.
-- Acceptance criteria.
-- Verification requirements.
-- Result/evidence.
-- Kanban/list/dependency views.
-
-Task lifecycle:
-
-```text
-Draft → Ready → In Progress → Review → Done
-          ↕          ↕
-        Blocked    Blocked
-```
-
-`Cancelled` là terminal state khác `Done`.
-
-### 6.5 Traceability Graph
-
-Relation là first-class data, không chỉ là hyperlink trong text.
-
-Vocabulary ban đầu:
-
-```text
-decomposes-to
-accepted-by
-governed-by
-satisfied-by
-introduces
-specifies
-implements
-produces
-realizes
-verifies
-depends-on
-owned-by
-assigned-to
-contained-in
-supersedes
-impacts
-```
-
-Reverse relation được query/generated, không lưu một bản editable thứ hai.
-
-### 6.6 Verification & Evidence
-
-Phải tách:
-
-```text
 Verification Definition
-   ↓ executed-as
-Verification Run
-   ↓ produces
-Evidence
+  └── verifies → Requirement / Deliverable
 ```
 
-Một test definition không tự chứng minh output đã pass. Verification run phải gắn với revision cụ thể.
+App phải hỗ trợ drill-down và reverse trace nhưng canonical model vẫn là graph, không ép thành một cây duy nhất.
 
-### 6.7 Change Management
+Coverage queries tối thiểu:
 
-Mọi thay đổi có khả năng ảnh hưởng baseline phải có thể được quản lý như một change set/request.
+- requirement chưa có design;
+- requirement chưa có deliverable;
+- deliverable chưa có specification;
+- deliverable chưa có task;
+- deliverable chưa được verify;
+- task không có upstream reason;
+- orphan traceable entity;
+- stale relation/input.
 
-Chi tiết ở mục 10.
+## 10. Deliverable / Output Management
 
-### 6.8 Integration & Synchronization
+Initial deliverable types:
 
-Ứng dụng phải API-first và có khả năng export/import/sync project data với external project folder, source repository, CI/CD và AI/service clients.
+- Screen;
+- API;
+- BatchJob;
+- Event;
+- File;
+- Report;
+- Notification;
+- Interface;
+- DataObject;
+- DatabaseObject;
+- Configuration;
+- DeploymentArtifact;
+- DocumentationDeliverable.
 
-Chi tiết ở mục 9.
+Deliverable có ID/key, type, owner, lifecycle, version và relations tới requirement/design/task/verification.
 
-## 7. Lifecycle và Baseline
-
-### 7.1 Knowledge Object
-
-```text
-Draft → In Review → Baseline → Superseded
-             ↘ Rejected
-```
-
-Object đã Baseline không được âm thầm sửa tại chỗ. Edit tạo revision/version mới và có thể kích hoạt impact analysis.
-
-### 7.2 Deliverable
+Lifecycle:
 
 ```text
 Planned → Specified → Implemented → Verified → Accepted → Deprecated
 ```
 
-### 7.3 Document
+`Specified` yêu cầu mandatory design product theo policy. `Verified` yêu cầu valid verification run trên target version/revision.
 
-Document có version riêng. Thay đổi wording/layout không nhất thiết làm thay đổi semantic version của mọi object bên trong.
+## 11. Task & Planning
 
-### 7.4 Project Snapshot/Baseline
+### 11.1 Task CRUD
 
-Hệ thống nên có `ProjectBaseline` hoặc `Snapshot` để cố định tập version của knowledge/deliverable tại một thời điểm, phục vụ release, audit và export reproducible.
+App hỗ trợ:
 
-## 8. External Project Folder Export
-
-### 8.1 App là canonical source cho governance data
-
-Ở MVP, dữ liệu có cấu trúc trong SaaS là source of truth. Project folder là projection/export để developer, tooling và AI có thể làm việc thuận tiện.
-
-Không được coi cả database SaaS và file local là hai canonical sources độc lập nếu chưa có conflict-resolution protocol.
-
-### 8.2 Export bundle
-
-User có thể export project hoặc một scope của project thành bundle machine-readable + human-readable, ví dụ:
-
-```text
-.project-governance/
-  manifest.yaml
-  project.yaml
-  relations.yaml
-  baseline.yaml
-  documents/
-    10-goals/
-    20-requirements/
-    30-design/
-    40-deliverables/
-    50-tasks/
-  objects/
-    goals.yaml
-    requirements.yaml
-    deliverables.yaml
-    tasks.yaml
-```
-
-Human-readable Markdown có thể chứa front matter:
-
-```yaml
----
-key: REQ-P2P-012
-objectId: 01J...
-version: 4
-baseline: BL-2026-09-001
----
-```
-
-`manifest.yaml` phải ghi ít nhất:
-
-- project identity;
-- export/snapshot ID;
-- generatedAt;
-- schema version;
-- included object IDs/versions;
-- checksum/hash cần thiết;
-- source SaaS project reference.
-
-Nhờ vậy AI hoặc tool trong local repository có thể biết chính xác tài liệu nào và version nào đang được dùng.
-
-### 8.3 Import/sync về sau
-
-MVP có thể bắt đầu với one-way export từ app. Two-way sync chỉ được bật khi có:
-
-- identity preservation;
-- version comparison;
-- optimistic concurrency;
-- conflict detection;
-- change set generation;
-- explicit resolution policy.
-
-Không được silently overwrite SaaS baseline bằng một file local cũ hơn.
-
-## 9. External API và Machine Authentication
-
-### 9.1 API-first
-
-Mọi chức năng quan trọng phải có API tương ứng để UI, CLI, AI agent và integrations dùng cùng application layer.
-
-Các API use case tối thiểu:
-
-```text
-GET  project/task context
-GET  object/document/deliverable by key
-GET  relations / impact graph
-POST task status transition
-POST task result
-POST implementation artifact
-POST verification run/evidence
-POST change request
-POST sync/import proposal
-```
-
-### 9.2 Agent/Service authentication
-
-AI agent không nên dùng credential của human user. Nó phải có machine identity riêng.
-
-Model đề xuất:
-
-```text
-Machine Principal
-  ├── AI Agent
-  └── Service Account
-        ↓
-Credential
-        ↓
-Project Membership + Role + Scopes
-```
-
-MVP có thể dùng scoped API token:
-
-- token chỉ hiện plaintext một lần khi tạo;
-- server chỉ lưu hash;
-- token có expiry;
-- có revoke/rotate;
-- token gắn với machine principal;
-- token bị giới hạn theo project và scopes;
-- mọi action có audit actor rõ ràng.
-
-Scopes ví dụ:
-
-```text
-project:read
-document:read
-object:read
-task:read
-task:update-status
-task:submit-result
-artifact:create
-verification:submit
-change:create
-```
-
-AI agent mặc định không có quyền baseline requirement/design, manage member hoặc accept deliverable.
-
-Về sau có thể hỗ trợ OAuth2 Client Credentials, OIDC workload identity hoặc signed short-lived tokens; core authorization model không phụ thuộc cơ chế credential cụ thể.
-
-### 9.3 Task Context API
-
-Một API quan trọng:
-
-```text
-GET /api/v1/projects/{projectKey}/tasks/{taskKey}/context
-```
-
-Response phải resolve được:
-
-- task metadata;
-- required input objects và exact versions;
-- related documents;
-- target deliverables;
-- allowed scope;
+- task create/update/archive/cancel;
+- assignment;
+- priority;
+- milestone/phase;
+- task dependency;
+- read set / required context;
+- write scope / target deliverables;
 - acceptance criteria;
 - verification requirements;
-- dependency state;
-- current baseline/snapshot.
+- result/evidence;
+- list/board/dependency views.
 
-AI không cần crawl toàn bộ project để đoán context.
-
-### 9.4 Task update protocol
-
-AI/human tool bên ngoài có thể transition task thông qua command API thay vì patch raw status:
+Task lifecycle:
 
 ```text
-POST /tasks/{taskKey}/transitions
-{
-  "transition": "start",
-  "expectedVersion": 7
-}
+Draft → Ready → InProgress → Review → Done
+          ↕          ↕
+        Blocked    Blocked
 ```
 
-Ứng dụng validate lifecycle, permission và optimistic concurrency trước khi thay đổi.
+`Cancelled` là terminal state riêng. `Implemented/Verified/Accepted` là trạng thái của Deliverable, không phải Task.
 
-Task result submission phải hỗ trợ idempotency key để retry an toàn.
+### 11.2 Definition of Ready
 
-## 10. Change Management và Impact Analysis
+Task không được Ready nếu policy-required context còn thiếu, dependency chưa đạt required state, target deliverable chưa được declare hoặc mandatory design/acceptance criteria chưa baseline/approved theo policy.
 
-### 10.1 Change Request / Change Set
+### 11.3 Task Context
 
-Khi requirement, design, deliverable contract hoặc baseline object cần thay đổi, hệ thống tạo `ChangeRequest`/`ChangeSet` thay vì chỉ edit rồi mất lịch sử.
+System phải resolve exact task context từ graph/input bindings thay vì yêu cầu AI/human tự crawl project:
+
+- task metadata/version;
+- required semantic object versions;
+- related documents;
+- target deliverables;
+- allowed write scope;
+- acceptance criteria;
+- verification requirements;
+- dependencies;
+- current project baseline.
+
+## 12. Roadmap & Milestone
+
+Roadmap/Phase/Milestone quản lý planning outcome. Milestone progress phải có thể dựa trên required deliverable state, không chỉ task count.
 
 ```text
-Change Request
-- key
-- title
-- reason
-- source / trigger
-- proposedChanges[]
-- affectedObjects[]
-- impactAssessment
-- owner
-- status
-- decision
+Roadmap
+  └── Phase
+       └── Milestone
+            ├── required deliverable outcomes
+            └── tasks
 ```
 
-Lifecycle tham khảo:
+## 13. Verification & Evidence
+
+Tách rõ:
 
 ```text
-Draft → Impact Analysis → Review → Approved → Applying → Verified → Closed
-                         ↘ Rejected
+VerificationDefinition
+   ↓ executed-as
+VerificationRun
+   ↓ produces
+Evidence
 ```
 
-### 10.2 Impact traversal
+Test definition không tự chứng minh output đã pass. Run phải gắn với target entity/version hoặc implementation revision cụ thể.
 
-Khi một baseline object đổi version:
+## 14. Version, Baseline và Snapshot
+
+### 14.1 Baseline
+
+Baseline cố định tập exact entity versions tại một thời điểm. Baseline version immutable.
+
+### 14.2 Edit baseline object
+
+Không silently overwrite baseline object. Edit semantic baseline tạo version mới và có thể trigger impact analysis.
+
+### 14.3 Staleness
+
+Consumer có version-sensitive dependency/input phải record exact input version hoặc baseline. Khi upstream current/baseline version thay đổi, hệ thống phải xác định consumer có stale hay không theo policy.
+
+## 15. Change Management & Impact Analysis
+
+### 15.1 Change Request
+
+ChangeRequest lifecycle:
 
 ```text
-Changed Object
-   ↓
-Traceability Graph Traversal
-   ↓
-Potentially Impacted Objects
-   ├── Documents
-   ├── Requirements / Rules
-   ├── Design Specifications
-   ├── Deliverables
-   ├── Tasks
-   ├── Tests / Verification
-   └── Milestones / Releases
+Draft → ImpactAnalysis → Review → Approved → Applying → Verified → Closed
+                       ↘ Rejected
 ```
 
-Relation type phải có metadata cho biết thay đổi có propagate impact hay không và theo hướng nào.
+### 15.2 Impact discovery
 
-### 10.3 Impact disposition
+Impact engine traverse Traceability Graph từ changed entity theo relation policy. Potential impact phải bao gồm được:
 
-Không phải downstream object nào cũng bắt buộc sửa. Mỗi impact item phải được disposition:
+- Documents;
+- Knowledge Objects;
+- Design Specifications;
+- Deliverables;
+- Tasks;
+- Verification Definitions/Runs;
+- Milestones/Releases;
+- relevant snapshots/exports.
+
+### 15.3 Impact disposition
+
+Graph discovery không tự động đồng nghĩa downstream phải sửa. Mỗi impact item được disposition:
 
 ```text
-Update Required
-Review Required
-Revalidation Required
-Replan Required
-No Change Required
+UpdateRequired
+ReviewRequired
+RevalidationRequired
+ReplanRequired
+NoChangeRequired
 Obsolete
 ```
 
-Người xử lý phải ghi rationale. Hệ thống giữ audit trail để biết tại sao object bị sửa hoặc không sửa.
+Disposition phải có actor, timestamp và rationale khi policy yêu cầu.
 
-### 10.4 Staleness
+### 15.4 Structural change vs semantic change
 
-Nếu `API-P2P-007-SPEC v3` được baseline nhưng task/verification vẫn dựa trên v2, hệ thống phải có khả năng đánh dấu relation/input là stale và yêu cầu review/revalidation theo policy.
+Move/rename/reorder folder/document node mặc định không propagate semantic impact. Document content/version change, semantic object version change, relation change, deliverable contract change hoặc policy-defined export path change có thể trigger impact.
 
-### 10.5 Change application
+## 16. External Integration & Export
 
-Approved change có thể:
+SaaS là canonical governance state. User có thể export project/baseline/subtree/task-context bundle thành machine-readable + human-readable projection.
 
-- tạo version mới của document/knowledge object;
-- tạo/sửa deliverable version;
-- tạo task mới hoặc reopen/replan task liên quan;
-- invalidate/revalidate verification;
-- update milestone scope;
-- tạo export snapshot mới.
+Export phải giữ:
 
-Không xóa lịch sử version cũ.
+- project identity;
+- entity IDs/keys;
+- exact versions;
+- structure paths;
+- relation set;
+- baseline/snapshot ID;
+- schema version;
+- checksums khi cần.
 
-## 11. Key Screens
+Two-way sync chỉ apply qua version comparison, conflict detection và reviewed proposal/change flow; không overwrite canonical state trực tiếp.
+
+## 17. API-first requirements
+
+Mọi capability quan trọng phải có application/API use case tương ứng. Tối thiểu:
+
+```text
+GET/POST/PATCH project structure nodes
+GET/POST/PATCH documents and semantic objects
+GET/POST/DELETE relations
+GET graph/backlinks/coverage/impact
+GET/POST deliverables
+GET/POST tasks and task transitions
+GET task context
+POST verification runs/evidence
+POST change requests / impact dispositions
+POST export/sync proposals
+```
+
+Status/lifecycle-sensitive change dùng command semantics thay vì generic raw status patch.
+
+## 18. Machine authentication
+
+AI/service không dùng human credential. Machine principal có credential riêng, project membership và scopes.
+
+MVP token requirements:
+
+- high entropy;
+- plaintext shown once;
+- server stores hash;
+- expiry optional;
+- revoke/rotate;
+- project scoped;
+- auditable actor;
+- least privilege scopes.
+
+## 19. Key Screens
 
 ### SCR-001 SaaS Home
-
-Danh sách project user sở hữu/tham gia, recent activity và project health summary.
+Project list, recent activity, health summary.
 
 ### SCR-002 Create Project
-
-Chọn project template, name/key, visibility và initial members.
+Template/version selection, name/key, members.
 
 ### SCR-003 Project Overview
+Coverage, deliverable health, task progress, stale entities, changes, verification failures.
 
-Requirement coverage, deliverable health, task progress, change requests, stale objects, blocked work, recent baseline và verification failures.
+### SCR-004 Project Structure & Document Explorer
+Folder/document tree CRUD, move/reorder, create from template, document authoring, history, placements, backlinks.
 
-### SCR-004 Document Explorer
-
-Tree navigation, template-based creation, structured object placement, version/history/backlinks.
-
-### SCR-005 Goal → Task Explorer
-
-Drill-down hierarchy/graph từ Goal đến Requirement, Design, Deliverable và Task; hỗ trợ reverse trace.
+### SCR-005 Traceability Explorer
+Graph/hierarchy/matrix, inbound/outbound relations, reverse trace, filters, orphan/coverage gaps.
 
 ### SCR-006 Deliverable Inventory / Detail
-
-Theo dõi output, lifecycle, version, upstream reason, specs, implementing tasks, artifacts và verification.
+Lifecycle, version, upstream requirement/design, implementing tasks, artifacts, verification.
 
 ### SCR-007 Task Board / Task Detail
+Planning/execution, context, scope, dependency, result.
 
-Planning/execution, assignee, context, scope, dependency, result và external updates.
+### SCR-008 Roadmap / Milestone
+Phase/milestone/outcome/task planning.
 
-### SCR-008 Traceability Graph / Matrix
+### SCR-009 Change & Impact Center
+Change request, changed versions, potential impact paths, disposition, revalidation/replan.
 
-Graph + table views, filter theo relation/type/status/version.
-
-### SCR-009 Roadmap / Milestone
-
-Phase → milestone → outcomes/tasks, progress theo deliverable outcome.
-
-### SCR-010 Change Center
-
-Change requests, proposed diffs, impact graph, disposition, applying status và revalidation.
+### SCR-010 Verification Center
+Definition/run/evidence, target version, stale/failure views.
 
 ### SCR-011 Integration & API Access
+Repository binding, exports, machine principals, credentials, webhooks/sync.
 
-Repository binding, export settings, machine principals, token/scopes, webhooks và sync status.
+## 20. Validation Rules
 
-### SCR-012 Verification Center
+Minimum rules:
 
-Verification definitions, runs, evidence, stale verification và failures.
+1. Technical ID immutable.
+2. Human key unique trong project đối với key-bearing traceable entities.
+3. Structure node parent phải cùng project; tree không có cycle.
+4. Document node phải reference valid Document cùng project.
+5. Move/rename node không đổi Document identity.
+6. Cross-project relation bị cấm mặc định.
+7. Relation source/target phải đúng `RelationTypeDefinition`.
+8. Reverse edge không lưu editable duplicate.
+9. Baseline version immutable; edit tạo revision/version mới.
+10. Task Ready phải thỏa Definition of Ready.
+11. Deliverable Specified phải đủ mandatory design coverage.
+12. Deliverable Verified phải có required verification pass trên target version/revision.
+13. Acyclic relation/dependency type không được tạo cycle.
+14. External lifecycle update phải permission-check + optimistic concurrency.
+15. Import/sync không overwrite newer canonical version without resolution.
+16. Baseline semantic change phải trigger impact nếu relation policy yêu cầu.
+17. Structural-only change không được tạo semantic impact giả.
+18. Relation/delete/archive phải giữ audit/provenance cần thiết.
 
-## 12. Validation Rules
+## 21. MVP Roadmap
 
-Tối thiểu:
+### MVP-1 — Foundation + Structure
 
-1. Human-readable key unique trong project.
-2. Technical ID immutable.
-3. Cross-project reference bị cấm trừ loại relation được thiết kế explicit cho shared assets sau này.
-4. Relation source/target phải đúng schema.
-5. Không lưu reverse relation editable riêng.
-6. Baseline object edit phải tạo version mới.
-7. Task không thể Ready nếu mandatory context/output/acceptance/dependency chưa đạt policy.
-8. Deliverable không thể Specified nếu mandatory design products còn thiếu.
-9. Deliverable không thể Verified nếu required verification chưa pass trên version/revision hiện tại.
-10. Dependency graph được khai báo acyclic không được có cycle.
-11. External status update phải đi qua transition command và permission check.
-12. Machine credential phải scoped, revocable và auditable.
-13. Import/sync không được overwrite version mới hơn mà không có conflict resolution.
-14. Baseline change phải tạo impact analysis nếu relation policy yêu cầu.
-15. Task result phải trace được người/machine submit, task version và project revision/baseline liên quan.
-
-## 13. MVP Roadmap
-
-### MVP-1 — SaaS Foundation
-
-- User authentication.
-- Multi-project per user.
-- Project membership/RBAC.
-- Project template.
-- Document tree + document template.
-- Structured object IDs/version.
+- Authentication.
+- Multi-project.
+- Membership/RBAC.
+- Project template/version.
+- Structure template tree.
+- Folder/document tree CRUD.
+- Document template + document CRUD/version.
 - Basic search.
 
-### MVP-2 — Software Project Governance
+### MVP-2 — Traceable Project Model
 
-- Goal → Requirement → Design → Deliverable → Task model.
-- Deliverable inventory.
-- Task board.
-- Relation graph.
-- Traceability matrix.
-- Validation/coverage.
-- Milestone/roadmap.
+- Knowledge objects.
+- Deliverables.
+- Tasks/milestones.
+- Generic relation CRUD.
+- Backlinks/graph/matrix.
+- Coverage/orphan validation.
 
-### MVP-3 — Change & Baseline
+### MVP-3 — Baseline & Impact
 
 - Baseline/snapshot.
-- Object diff/version history.
-- Change request/change set.
-- Impact analysis.
-- Stale/revalidation handling.
+- Version diff.
+- Change request.
+- Graph impact traversal.
+- Impact disposition.
+- Stale/revalidation/replan handling.
 
 ### MVP-4 — External Integration
 
-- Export project governance bundle to folder/repository.
-- GitHub repository binding.
+- Export bundle.
+- Repository binding.
 - Implementation artifact links.
-- Verification run/evidence ingestion.
-- Webhook/event ingestion where useful.
+- Verification ingestion.
+- Webhook/outbox where useful.
 
-### MVP-5 — AI / Machine Worker
+### MVP-5 — Machine Worker
 
-- Machine principal.
-- Scoped API token.
+- Machine principal/token.
 - Task context API.
-- Task transition/result API.
-- Artifact/evidence submission.
-- Agent activity/audit.
+- Task result/artifact/evidence submission.
+- Agent audit/activity.
 
-AI support nằm sau core project model; không có AI thì sản phẩm vẫn là một SaaS quản lý dự án phần mềm hoàn chỉnh theo hướng traceability-first.
-
-## 14. Non-functional Requirements
+## 22. Non-functional Requirements
 
 - API-first.
-- Multi-tenant security enforced server-side.
-- Audit trail cho permission, baseline, status, relation, change và machine action.
-- Optimistic concurrency cho update/version/transition.
-- Idempotency cho command từ external agents/services.
-- Full-text search + structured filter.
-- Project có hàng chục nghìn objects vẫn phải traversal/query thực dụng.
-- Export/import có schema version.
-- Credential secret phải được hash/encrypt phù hợp; plaintext token không được lưu sau khi phát hành.
-- External integration outage không làm mất khả năng quản lý core project data.
-- PostgreSQL là canonical persistence cho MVP; graph có thể dùng edge table + recursive query trước khi cân nhắc graph database.
+- Server-side tenant/project isolation.
+- Optimistic concurrency for versions/transitions/relation-sensitive updates.
+- Idempotency for external commands with side effects.
+- Audit trail for permission, baseline, relation, lifecycle, change and machine actions.
+- Full-text search + structured filters.
+- Practical graph traversal for projects with tens of thousands of traceable entities.
+- Schema-versioned import/export.
+- PostgreSQL as canonical persistence for MVP; edge table + indexes + recursive CTE before graph database.
+- External integration outage must not block core project authoring/governance.
 
-## 15. Product Success Criteria
+## 23. Product Acceptance Criteria
 
-Sản phẩm đạt mục tiêu khi user có thể mở một project và trả lời được bằng dữ liệu có cấu trúc:
+Product model được coi là đủ rõ để bước sang detailed design/code khi implementation có thể đáp ứng các scenario sau:
 
-- Project này đang nhằm đạt Goal nào?
-- Goal đó được phân rã thành requirement nào?
-- Requirement nào chưa có design hoặc deliverable?
-- Những output nào project phải tạo?
-- Output nào chưa được implement/verify?
-- Task nào tạo hoặc thay đổi output đó?
-- Task cần đọc tài liệu/object/version nào?
-- Human/AI/service nào đang chịu trách nhiệm?
-- Source code/PR/artifact nào hiện thực deliverable?
-- Nếu requirement hoặc API contract thay đổi thì document, deliverable, task, test và milestone nào bị ảnh hưởng?
-- Những impact nào đã được xử lý và vì sao?
-- Có thể export một snapshot nhất quán của project vào repository để human/AI làm việc không?
-- External AI/service có thể cập nhật task/result an toàn qua API mà không cần dùng credential của user không?
+### AC-PROD-001 — Recreate sample structure
+User định nghĩa/import một project template và instantiate được structure tree tương đương `docs/sample-project/`, gồm nested folders và documents.
 
-Nguyên tắc trung tâm:
+### AC-PROD-002 — Structure CRUD preserves identity
+User move/rename/reorder một document trong tree; document key/id và semantic object IDs bên trong không đổi.
 
-> **SaaS là system of record cho software project knowledge, output, work, change và traceability. Repository, CI, human và AI là các môi trường/actor được tích hợp xung quanh core đó, không phải các source of truth cạnh tranh không kiểm soát.**
+### AC-PROD-003 — Semantic object placement
+Một BusinessRule được canonicalize một lần nhưng render ở nhiều document qua placements.
+
+### AC-PROD-004 — Generic relation CRUD
+User tạo relation giữa Requirement→Deliverable, DesignSpecification→Deliverable, Task→Deliverable, VerificationDefinition→Requirement/Deliverable và Document→traceable entity bằng allowed relation type; reverse view query được mà không duplicate edge.
+
+### AC-PROD-005 — Coverage
+System phát hiện requirement thiếu design/deliverable, deliverable thiếu spec/task/verification và task thiếu upstream reason.
+
+### AC-PROD-006 — Impact analysis
+Khi baseline Requirement tạo version mới, system traverse relation policy và hiển thị potential impact tới relevant document/design/deliverable/task/verification/milestone; user disposition từng impact.
+
+### AC-PROD-007 — Structural change is not semantic change
+Move document sang folder khác không tự tạo impact tới Requirement/Task nếu không có path-sensitive policy.
+
+### AC-PROD-008 — Reproducible export
+System export project snapshot giữ được structure, IDs, exact versions, relations và baseline metadata để human/AI có thể resolve đúng context.
+
+> **Sản phẩm là một project-governance system có authoring tree + traceability graph. Tree trả lời “tài liệu nằm ở đâu”; graph trả lời “vì sao nó tồn tại, phụ thuộc gì, ai tạo/thay đổi nó và thay đổi này ảnh hưởng tới đâu”.**
