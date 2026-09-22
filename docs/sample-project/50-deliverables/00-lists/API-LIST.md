@@ -1,12 +1,6 @@
 # API List
 
-> Derived/inventory view. Trong SaaS thật, list này nên generate từ Deliverable registry.
-
-| ID | API | Module | Related Requirement | Design Spec | Implement Task | Verification | Status |
-|---|---|---|---|---|---|---|---|
-| `API-ORD-001` | Order Command API | Order | `REQ-ORD-001..003` | `API-DES-001` | `TASK-ORD-BE-001` | `TEST-ORD-001`, `PERF-001`, `SEC-TEST-001` | Specified |
-| `API-INV-001` | Stock Reservation API | Inventory | `REQ-INV-001` | `API-DES-002` | `TASK-INV-BE-001` | `TEST-INV-001`, `PERF-001`, `REL-TEST-001` | Specified |
-
-## Required columns for project template
-
-ID, name, module/service, protocol, consumer, requirement, design spec, auth policy, idempotency, implementation task, verification và lifecycle status.
+| ID | Feature | Name | Design | Task | Verification | Status |
+|---|---|---|---|---|---|---|
+| `API-F001-001` | `FEATURE-001` | Feature 001 API 001 | `API-DES-F001-001` | `TASK-F001-001` | `TEST-F001-001` | Planned |
+| `API-F002-001` | `FEATURE-002` | Feature 002 API 001 | `API-DES-F002-001` | `TASK-F002-001` | `TEST-F002-001` | Planned |

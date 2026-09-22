@@ -1,11 +1,5 @@
 # Screen List
 
-> Derived/inventory view. Trong SaaS thật, list này nên generate từ Deliverable registry.
-
-| ID | Screen | Module | Related Requirement | Design Spec | Implement Task | Status |
+| ID | Feature | Name | Design | Task | Verification | Status |
 |---|---|---|---|---|---|---|
-| `SCR-ORD-001` | Order Detail | Order | `REQ-ORD-003` | `SCR-DES-001` | `TASK-ORD-FE-001` | Specified |
-
-## Required columns for project template
-
-Mỗi screen record tối thiểu quản lý: ID, name, route, module, screen type, actors/roles, upstream requirement, design spec, API dependencies, implementing task, verification và lifecycle status.
+| `SCR-F001-001` | `FEATURE-001` | Feature 001 Screen 001 | `SCR-DES-F001-001` | `TASK-F001-002` | `TEST-F001-001` | Planned |

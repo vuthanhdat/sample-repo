@@ -1,13 +1,7 @@
 # Notification List
 
-> Derived/inventory view cho in-app/push/system notification khác email.
+| Applicability | Reason |
+|---|---|
+| Not Evaluated | Chưa giả định project có notification output. |
 
-Hiện sample Order & Inventory chưa có notification deliverable độc lập.
-
-| ID | Notification | Channel | Trigger | Audience | Requirement | Design Spec | Status |
-|---|---|---|---|---|---|---|---|
-| — | No applicable notification deliverable | — | — | — | — | — | Not Applicable |
-
-## Required columns
-
-ID, name, channel, trigger/event, audience rule, message/template, priority, read/unread behavior, retry/deduplication, retention, requirement, design spec, task, verification và status.
+Khi Applicable, quản lý channel, trigger, audience, template/payload, read-state semantics, retry và traceability.

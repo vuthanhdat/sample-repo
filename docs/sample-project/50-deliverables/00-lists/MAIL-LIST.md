@@ -1,13 +1,7 @@
 # Mail List
 
-> Derived/inventory view cho các email nghiệp vụ mà hệ thống gửi.
+| Applicability | Reason |
+|---|---|
+| Not Evaluated | Chưa giả định project có email output. |
 
-Hiện sample Order & Inventory chưa có mail deliverable.
-
-| ID | Mail | Trigger | Recipient | Template | Requirement | Design Spec | Status |
-|---|---|---|---|---|---|---|---|
-| — | No applicable mail deliverable | — | — | — | — | — | Not Applicable |
-
-## Required columns
-
-ID, name, trigger/event, recipient rule, subject/template, localization, retry policy, duplicate prevention, sensitive-data rule, requirement, design spec, task, verification và status.
+Khi Applicable, quản lý Mail ID, trigger, recipients, template, localization, retry, duplicate prevention, design/task/test.
