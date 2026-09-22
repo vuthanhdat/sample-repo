@@ -38,6 +38,19 @@ sample-project/
 │   │   ├── infrastructure/
 │   │   └── cross-cutting/
 │   └── 20-feature/
+│       └── feature-NNN/
+│           ├── decision/
+│           ├── domain/
+│           ├── workflow-state/
+│           ├── screen/
+│           ├── api/
+│           ├── job/
+│           ├── event/
+│           ├── integration/
+│           ├── data/
+│           ├── file/
+│           ├── mail-notification/
+│           └── report/
 ├── 50-deliverables/
 │   ├── 00-lists/
 │   ├── feature-001/
@@ -94,7 +107,9 @@ Không bắt buộc project phải tạo mọi document. Mỗi loại phải đ�
 
 `40-design/10-common/` chứa technical baseline áp dụng cho toàn application hoặc nhiều feature: architecture, backend/frontend, API, integration, data, security, infrastructure và cross-cutting concerns.
 
-`40-design/20-feature/feature-NNN/` chứa design riêng cho feature theo artifact/decision type: decision, screen, API, job, event, integration, data, file, mail/notification, report... Feature design kế thừa common baseline thay vì copy lại.
+`40-design/20-feature/feature-NNN/` chứa design riêng cho feature. Ngoài output-facing design như screen/API/job/event/integration/data, feature design còn có `domain/` và `workflow-state/` để mô tả business model, invariants, lifecycle và state transition mà không nhầm chúng với database schema.
+
+Feature design kế thừa common baseline thay vì copy lại.
 
 ## Feature Index
 
