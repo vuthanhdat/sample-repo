@@ -65,6 +65,8 @@ Business rule có thể nằm trực tiếp trong functional requirement nếu l
 └── 20-feature/
     └── feature-NNN/
         ├── decision/
+        ├── domain/
+        ├── workflow-state/
         ├── screen/
         ├── api/
         ├── job/
@@ -77,6 +79,8 @@ Business rule có thể nằm trực tiếp trong functional requirement nếu l
 ```
 
 Common Design không được chứa rule/entity/state của một feature cụ thể. Feature Design kế thừa Common Design và chỉ mô tả phần khác biệt của feature.
+
+`domain/` giữ business model như aggregate/entity/value object/invariant; `workflow-state/` giữ lifecycle/state machine/orchestration của feature. Hai area này không được đánh đồng với database schema trong `data/`.
 
 Các vùng Common Design lớn có thể breakdown thêm:
 
