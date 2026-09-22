@@ -98,7 +98,9 @@ docs/sample-project/
 │   ├── TEST-SHP-001-shipping-contract.md
 │   ├── PERF-001-order-inventory-load.md
 │   ├── REL-TEST-001-reliability-idempotency.md
-│   └── SEC-TEST-001-authorization-audit.md
+│   ├── SEC-TEST-001-authorization-audit.md
+│   ├── UX-TEST-001-accessibility-usability.md
+│   └── ARCH-TEST-001-boundary-quality.md
 │
 ├── 80-operations/
 │   ├── DEP-001-deployment-design.md
@@ -120,7 +122,7 @@ docs/sample-project/
 | Governance | Project template yêu cầu những document/design products nào? |
 | Goal / Business Context | Vì sao project tồn tại, actor/capability/domain là gì? |
 | Business Flow | Nghiệp vụ chạy qua những bước/actor/system nào? |
-| Requirements | Điều gì **phải đúng** — functional và non-functional? |
+| Requirements | Điều gì **phải đúng** — functional, NFR, data, integration, security? |
 | Design Decision | Ta chọn hình dạng solution nào và vì sao? |
 | Design Specification | API/DB/screen/job/event/interface cụ thể phải tuân contract gì? |
 | Deliverable | Những output nào cuối cùng **phải tồn tại** trong hệ thống? |
@@ -130,9 +132,7 @@ docs/sample-project/
 | Change Management | Baseline thay đổi ra sao và ảnh hưởng object nào? |
 | Traceability | Chuỗi trên có coverage và truy ngược được không? |
 
-## 3. Requirement không chỉ là Functional Requirement
-
-Mô hình sample coi requirement là nhiều dimension song song:
+## 3. Requirement là nhiều dimension song song
 
 ```text
 Business Goal / Flow
@@ -144,13 +144,11 @@ Integration Requirements ──────────┤──> Architecture /
 Security Requirements ─────────────┘
 ```
 
-`NFR-PERF-001` chẳng hạn không nằm “dưới” một API duy nhất; nó constrain API, DB, screen và job cùng lúc. Vì vậy folder chỉ là navigation, còn graph mới là model thật.
+NFR không nằm “bên lề” functional requirement. `NFR-PERF-001` constrain API/DB/screen/job; `NFR-REL-001` constrain API/event/job/integration; `NFR-UX-001` constrain screen; `NFR-MNT-001` constrain architecture/implementation boundaries.
 
 `NFR-CHECKLIST.md` buộc project review các category như performance, scalability, reliability, DR, security, privacy, operability, usability/accessibility, maintainability, interoperability, compliance... rồi đánh dấu `Applicable` hoặc `Not Applicable` có lý do.
 
 ## 4. Design Decision khác Design Specification
-
-Ví dụ:
 
 ```text
 REQ-INV-001
@@ -165,32 +163,30 @@ DBD-001/002 ── specifies ──> DB-INV-001
 JOB-DES-001 ── specifies ──> JOB-INV-001
 ```
 
-Như vậy “có một design document” không đủ. Project phải biết **design products nào bắt buộc theo loại deliverable**. Job cần schedule/selection/transaction/retry/rerun/concurrency/observability; DB cần ownership/logical/physical schema/index/migration/retention; Event cần schema/version/delivery/idempotency; mỗi loại có checklist khác nhau.
+“Có một design document” không đủ. Project phải biết **design products nào bắt buộc theo loại deliverable**. Job cần schedule/selection/transaction/retry/rerun/concurrency/observability; DB cần ownership/logical/physical schema/index/migration/retention; Event cần schema/version/delivery/idempotency; Interface cần mapping/auth/retry/error model; mỗi loại có checklist riêng.
 
-## 5. Deliverable là inventory output, không phải file design
-
-Ví dụ:
+## 5. Deliverable khác Design và Implementation Artifact
 
 ```text
-DBD-002                           DB-INV-001
-Physical DB Design   specifies   Inventory DB Deliverable
-                                  ↓ realized-by
-                                  migration/source artifacts
+DBD-002                         DB-INV-001
+Physical DB Design  specifies  Inventory DB Deliverable
+                                ↓ realized-by
+                                migration/source artifacts
 
-JOB-DES-001                        JOB-INV-001
-Job Specification     specifies   Runtime Job Deliverable
+JOB-DES-001                     JOB-INV-001
+Job Specification   specifies  Runtime Job Deliverable
 ```
 
 Design Specification mô tả output; Deliverable là thứ project yêu cầu hệ thống thực tế phải có; source/migration/config/deployment files là Implementation Artifacts hiện thực deliverable đó.
 
 ## 6. Task là execution contract
 
-Task không phải một TODO title. Ví dụ `TASK-INV-BE-001` có graph context:
+Ví dụ `TASK-INV-BE-001` phải resolve:
 
 ```text
 reads
   REQ-INV-001 + BR/AC
-  NFR-PERF / NFR-REL / NFR-OPS / SREQ / DREQ
+  NFR-PERF / NFR-REL / NFR-OPS / NFR-MNT / SREQ / DREQ
   DES-INV-001
   ARCH-001 / ARCH-002
   API-DES-002
@@ -207,47 +203,30 @@ verified-by
   PERF-001
   REL-TEST-001
   SEC-TEST-001
+  ARCH-TEST-001
 ```
 
 Human hay AI nhận Task ID đều phải resolve đúng context này; không tự crawl toàn repo và đoán requirement.
 
-## 7. Verification bao gồm NFR
+## 7. Verification bao gồm functional và NFR
 
-Functional E2E pass chưa đủ để Deliverable được Verified. Sample có:
+Functional E2E pass chưa đủ để Deliverable được Verified. Sample có functional/integration, external contract, performance/load, reliability/idempotency/concurrency, authorization/audit, usability/accessibility và architecture/maintainability verification; operations còn có production-readiness evidence.
 
-- functional/integration verification;
-- shipping contract verification;
-- performance/load verification;
-- concurrency/idempotency/reliability verification;
-- authorization/audit verification;
-- architecture/static quality gate theo `TEST-STRAT-001`;
-- operational readiness evidence.
+Verification Definition và Verification Run/Evidence là hai khái niệm khác nhau.
 
-Verification Definition và Verification Run/Evidence vẫn là hai khái niệm khác nhau.
+## 8. Operations thuộc project knowledge
 
-## 8. Operations cũng thuộc project knowledge
-
-`DEP-001`, `OBS-001`, `RUN-001` mô tả cách deploy, quan sát, alert, khôi phục và support production. Một system có code/test đẹp nhưng không thể chẩn đoán hoặc restore khi failure thì chưa đủ production-ready.
+`DEP-001`, `OBS-001`, `RUN-001` mô tả deploy, health/readiness, dashboards/alerts, support và recovery. Một system có code/test đẹp nhưng không thể chẩn đoán hoặc restore khi failure thì chưa production-ready.
 
 ## 9. Change Management
 
-`CR-001` minh họa thay đổi approval threshold. Hệ thống không chỉ sửa `BR-ORD-001`; nó traverse graph để xác định candidate impacts tới requirement, configuration design, API, screen và tests, sau đó từng impact được disposition:
+`CR-001` minh họa thay đổi approval threshold. Hệ thống traverse graph để xác định candidate impacts tới rule, requirement, configuration design, API, screen, task/test rồi từng impact được disposition thành `Update Required`, `Review Required`, `Revalidation Required`, `Replan Required` hoặc `No Change Required`.
 
-```text
-Update Required
-Review Required
-Revalidation Required
-Replan Required
-No Change Required
-```
-
-Đây là cơ chế để trả lời câu hỏi “thay đổi này phải update tài liệu/deliverable/test nào?”.
+Đây là cơ chế trả lời câu hỏi: **“Thay đổi này phải update tài liệu, deliverable, task và test nào?”**
 
 ## 10. ProjectTemplate không tạo bureaucracy
 
-`DOCUMENT-CATALOG.md` là checklist có điều kiện. Nếu project không có batch/job, `Job Design` được đánh dấu `Not Applicable` có reason; không cần sinh file rỗng. Nếu sau này scope thêm background processing, item chuyển sang Applicable và app biết design/output/verification coverage nào phải có.
-
-Mục tiêu của SaaS là quản lý trạng thái này bằng structured data:
+`DOCUMENT-CATALOG.md` là checklist có điều kiện. Nếu project không có batch/job, Job Design được `Not Applicable` + reason; không cần sinh file rỗng. Khi scope thay đổi, item có thể chuyển sang Applicable và app biết design/output/verification coverage cần bổ sung.
 
 ```text
 Not Evaluated
