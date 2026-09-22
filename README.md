@@ -1,108 +1,126 @@
 # Software Project Governance SaaS
 
-Repository này thiết kế một **SaaS quản lý dự án phần mềm theo hướng traceability-first**. Sản phẩm thật không phải là bộ Markdown trong `docs/sample-project/`; sản phẩm là ứng dụng cho phép user tạo project, CRUD cấu trúc tài liệu, quản lý các đối tượng software-project có ID/version, quản lý quan hệ giữa chúng và phân tích ảnh hưởng khi một đối tượng thay đổi.
+Repository này thiết kế một **SaaS quản lý software project theo hướng traceability-first**. Điểm khác biệt cốt lõi không phải là lưu Markdown tốt hơn, mà là biến methodology, requirement, design, deliverable, task, verification và quan hệ giữa chúng thành dữ liệu có cấu trúc để cả human lẫn AI agent có thể làm việc trên cùng một project model.
 
-`docs/sample-project/` chỉ là **reference/acceptance fixture**: một ví dụ về bộ tài liệu mà ứng dụng phải có khả năng biểu diễn, tạo từ template, chỉnh sửa, export và trace. Không được dùng nội dung nghiệp vụ giả trong sample làm requirement của sản phẩm.
+`docs/sample-project/` chỉ là **reference/acceptance fixture**. Nó minh họa một bộ tài liệu mà app phải có thể biểu diễn, tạo từ template, chỉnh sửa và export; nó không phải product requirement source.
 
-## 1. Product mental model
+## 1. Product decomposition
 
-Core của sản phẩm gồm hai cấu trúc độc lập nhưng liên kết với nhau:
+Canonical product decomposition nằm tại [PRODUCT-AREAS.md](./PRODUCT-AREAS.md).
+
+Sản phẩm được chia thành ba Product Area:
+
+```text
+PA-01 Template & Methodology Management
+        ↓ instantiate
+PA-02 Project Workspace & Traceability
+        ↓ execute / collaborate
+PA-03 Work Management & Human-AI Collaboration
+```
+
+Các capability dùng chung như Identity/RBAC, stable identity/versioning, audit, API, export/sync và search được xem là Platform / Cross-cutting capabilities.
+
+---
+
+# 2. PA-01 — Template & Methodology Management
+
+PA-01 trả lời câu hỏi:
+
+> Một software project chuẩn phải được tổ chức, breakdown, giao việc và kiểm chứng như thế nào?
+
+Template layer quản lý:
+
+```text
+Project Template
+├── Structure Template
+│   ├── Folder Template Node
+│   └── Document Template Node
+├── Document Templates
+├── Semantic Object Schemas
+├── Relation Type Definitions
+├── Deliverable Policies
+├── Task Templates
+├── Tasklist Templates
+├── Coverage / Completeness Rules
+├── Definition of Ready / Done
+└── Role / Export / Lifecycle Policies
+```
+
+Template có version và lifecycle riêng. Published template version immutable. Project instance phải giữ provenance tới exact template version đã dùng.
+
+**Tasklist cũng phải được template hóa.** Ví dụ một `API Deliverable` có thể yêu cầu task blueprint gồm Backend Implementation → Unit Test → Integration Test → Review, kèm dependency, required context, target deliverable, verification và DoR/DoD.
+
+---
+
+# 3. PA-02 — Project Workspace & Traceability
+
+PA-02 trả lời câu hỏi:
+
+> Trong Project X hiện có những requirement, design, deliverable, document và task nào; chúng liên quan với nhau thế nào; requirement đã drill-down tới đâu và còn thiếu gì?
+
+Khi user tạo project từ một `ProjectTemplateVersion`, app instantiate runtime project state:
+
+```text
+Template                           Project Runtime
+--------                           ---------------
+Structure Template        →        Project Structure Tree
+Document Template         →        Document + initial version
+Semantic Schema           →        Project semantic objects
+Relation Definition       →        Relation instances
+Task / Tasklist Template  →        Runtime Tasks + Dependencies
+Governance Policy         →        Coverage / transition validation
+```
+
+Core project model gồm hai cấu trúc độc lập nhưng liên kết:
 
 ```text
 A. Project Structure Tree
 
 Project
 └── Folder / Document nodes
-    ├── Folder
-    ├── Document
-    └── Folder
-        └── Document
 
-→ CRUD structure, navigation, ordering, template instantiation, export path
+→ navigation, ordering, CRUD, export path
 
 B. Traceability Graph
 
 Goal / Flow / Requirement / Rule / Design / Document
-                  ↓ relations
+                  ↕ typed relations
 Deliverable / Task / Verification / Artifact / Milestone / Change
 
-→ dependency, coverage, backlinks, impact analysis, task context
+→ dependency, coverage, backlinks, impact, task context
 ```
 
-**Vị trí của một file trong folder không phải là semantic relation.** Move/rename một document trong tree chỉ thay đổi navigation/export structure, trừ khi policy cụ thể quy định path là contract. Ngược lại, relation như `Requirement requires API`, `DesignSpecification specifies API`, `Task implements API` là semantic data và không được suy ra từ folder path.
+Folder/document parent-child không phải semantic relation. Move/rename document không làm thay đổi `DocumentId`, human key hoặc semantic object identity.
 
-## 2. SaaS model
+## 3.1 Requirement drill-down
+
+Requirement phải drill-down được theo graph, không chỉ là text:
 
 ```text
-User
- ├── Project A
- ├── Project B
- └── Project C
-
-Project
- ├── Members / RBAC
- ├── Structure Tree
- ├── Documents / Knowledge
- ├── Deliverables
- ├── Tasks / Roadmap
- ├── Relations / Traceability
- ├── Baselines / Versions
- ├── Changes / Impact
- ├── Verification
- └── Integrations
+Goal
+  ↓
+Flow / Capability
+  ↓
+Requirement
+  ├── Business Rules
+  ├── Acceptance Criteria
+  ├── Design
+  ├── Deliverables
+  ├── Tasks
+  └── Verification
 ```
 
-`User` là tài khoản SaaS toàn cục. Actor trong project được biểu diễn bằng `Principal` + `ProjectMembership`:
+System phải trả lời được:
 
-```text
-Principal
-├── Human
-├── AI Agent
-└── Service Account
-```
+- requirement còn thiếu acceptance criteria không;
+- requirement có đủ design coverage chưa;
+- requirement đã sinh đủ deliverable chưa;
+- deliverable nào chưa có task;
+- task nào chưa hoàn thành;
+- implementation đã được verify trên đúng version/revision chưa;
+- dependency/input nào đã stale.
 
-AI chỉ là một project actor có machine identity, permission và credential riêng. Core project/task/document model không thay đổi tùy actor là human hay AI.
-
-## 3. Project Template, Structure Template và Document Template
-
-Khi tạo project, user có thể chọn một `ProjectTemplateVersion`. Template định nghĩa baseline policy và một **structure template tree** gồm folder/document template nodes.
-
-Ví dụ:
-
-```text
-Software Project Standard
-├── 00 Governance/
-├── 10 Goals/
-├── 20 Requirements/
-├── 30 Design/
-├── 40 Deliverables/
-├── 50 Planning/
-└── 60 Verification/
-```
-
-Khi instantiate project, structure template sinh ra `ProjectStructureNode` thực tế. Folder node chỉ quản lý cấu trúc; document node trỏ tới một `Document`.
-
-`DocumentTemplateVersion` định nghĩa structure/content của một document cụ thể, ví dụ Requirement Specification, API Specification hoặc Test Strategy. Project template và document template là hai khái niệm khác nhau.
-
-## 4. Document và semantic object
-
-`Document` là authoring container có version riêng. Goal, Requirement, BusinessRule, DesignSpecification... là semantic objects có identity/version riêng. Một semantic object có thể được render trong nhiều document thông qua `KnowledgePlacement` mà không bị duplicate canonical state.
-
-```text
-Document Tree
-   ↓
-Document
-   ↓ contains/renders
-KnowledgePlacement
-   ↓ references
-KnowledgeObject
-```
-
-Document cũng là một traceable entity: có thể có relation với document khác hoặc với Requirement/Design/Deliverable khi relation đó có ý nghĩa semantic. Tuy nhiên `parent folder` hoặc `document nằm dưới folder X` vẫn thuộc Structure Tree, không dùng Relation để mô hình hóa.
-
-## 5. Canonical traceability chain
-
-Chuỗi điển hình:
+## 3.2 Canonical traceability chain
 
 ```text
 Goal
@@ -128,110 +146,21 @@ Task / TaskResult
   └── produces → Implementation Artifact
 ```
 
-Các reverse views như `specified-by`, `implemented-by`, `verified-by`, `required-by` được query/generated từ canonical edge, không lưu một edge editable thứ hai.
+Reverse views như `required-by`, `specified-by`, `implemented-by`, `verified-by` được generated từ canonical edge, không lưu editable duplicate.
 
-## 6. Identity và relation
+---
 
-Mọi traceable object có:
+# 4. PA-03 — Work Management & Human-AI Collaboration
 
-```text
-Technical ID  → immutable UUID/ULID
-Human Key     → stable, project-scoped key
-```
+PA-03 trả lời câu hỏi:
 
-Ví dụ:
+> Ai đang làm gì, tiến độ thực tế ra sao, requirement nào chưa hoàn thành, công việc nào bị block, AI agent và human phối hợp thế nào?
 
-```text
-DOC-P2P-001
-GOAL-001
-REQ-P2P-012
-DES-P2P-005
-API-P2P-007
-TASK-P2P-BE-042
-VER-P2P-012
-CR-2026-004
-```
+PA-03 là execution/collaboration layer trên runtime project graph của PA-02, không tạo một project model thứ hai.
 
-`Relation` là first-class canonical data và endpoint của relation dùng generic project-scoped object reference, không bị giới hạn ở `KnowledgeObject`.
+## 4.1 Task management
 
-Relation type định nghĩa ít nhất:
-
-- allowed source types;
-- allowed target types;
-- canonical direction và reverse label;
-- cycle policy;
-- version sensitivity;
-- impact propagation policy.
-
-## 7. CRUD capability bắt buộc
-
-MVP phải CRUD được ít nhất các nhóm sau:
-
-- Project, membership, role/permission.
-- Project Structure Node: create folder/document node, rename, move, reorder, archive/restore.
-- Document: create from template, edit, version, baseline, history.
-- Document section/placement và structured knowledge object.
-- Deliverable/output và version/lifecycle.
-- Task, dependency, roadmap/milestone.
-- Relation: create, validate, update metadata, delete, query inbound/outbound/backlink.
-- Verification definition/run/evidence.
-- Change request, impact item, disposition.
-
-Delete phải tôn trọng reference/version/audit policy; baseline object không được hard-delete hoặc silently overwrite.
-
-## 8. Impact analysis
-
-Khi một baseline/versioned entity thay đổi, hệ thống traverse Traceability Graph theo policy của từng relation type:
-
-```text
-Changed Entity
-   ↓
-Potential Impact Graph
-   ↓
-Document / Requirement / Design / Deliverable / Task / Verification / Milestone
-   ↓
-Impact disposition
-├── UpdateRequired
-├── ReviewRequired
-├── RevalidationRequired
-├── ReplanRequired
-├── NoChangeRequired
-└── Obsolete
-```
-
-Graph discovery chỉ tạo **potential impact**; hệ thống không tự kết luận mọi downstream entity phải sửa. User/owner phải disposition và ghi rationale. Exact version/baseline được dùng để phát hiện stale consumer.
-
-## 9. External integration
-
-SaaS là canonical source cho governance/semantic project state. Source repository vẫn là source of truth cho code, CI provider là source of truth cho CI execution result.
-
-```text
-SaaS
-  ↓ export snapshot
-.project-governance/ in repository
-  ↓ human / AI / tooling
-Source code / PR / CI
-  ↓ API / webhook
-SaaS artifact / task result / verification / change data
-```
-
-Two-way sync không được silently overwrite canonical state; external edits phải đi qua identity/version comparison, conflict detection và change/sync proposal.
-
-## 10. Lifecycle
-
-Knowledge object:
-
-```text
-Draft → InReview → Baseline → Superseded
-```
-
-Deliverable:
-
-```text
-Planned → Specified → Implemented → Verified → Accepted → Deprecated
-```
-
-Task:
+Task lifecycle:
 
 ```text
 Draft → Ready → InProgress → Review → Done
@@ -239,32 +168,181 @@ Draft → Ready → InProgress → Review → Done
         Blocked    Blocked
 ```
 
-Task và Deliverable có lifecycle độc lập. `Task Done` không đồng nghĩa `Deliverable Accepted`.
+`Cancelled` là terminal state riêng. `Task Done` không đồng nghĩa `Deliverable Accepted` hay `Requirement Complete`.
 
-## 11. Canonical documents
+Task runtime phải quản lý:
 
-- [APP-REQUIREMENTS.md](./APP-REQUIREMENTS.md): product requirements và acceptance boundary.
-- [APP-DOMAIN-MODEL.md](./APP-DOMAIN-MODEL.md): canonical domain concepts và invariants.
+- objective;
+- assignee;
+- priority;
+- milestone/phase;
+- dependencies;
+- exact read set / required context;
+- write scope / target deliverables;
+- acceptance criteria;
+- verification requirements;
+- result/evidence;
+- blocker/review state.
+
+## 4.2 Human + AI
+
+Actor trong project được biểu diễn chung:
+
+```text
+Principal
+├── Human
+├── AIAgent
+└── Service
+        ↓
+ProjectMembership
+        ↓
+Role / Permission / Scope
+```
+
+AI không có `AITask` riêng. AI nhận cùng Task model nhưng hệ thống phải resolve được deterministic task context để agent không cần crawl project rồi tự suy đoán.
+
+```text
+Task
+├── objective
+├── upstream requirements + exact versions
+├── acceptance criteria
+├── design specifications
+├── target deliverables
+├── required documents/sections
+├── dependencies
+├── allowed write scope
+├── verification requirements
+├── baseline
+└── relevant implementation artifacts
+```
+
+## 4.3 Dashboard
+
+Dashboard phải đo progress theo project graph, không chỉ task count:
+
+```text
+Requirement coverage
+Design coverage
+Deliverable lifecycle
+Task execution
+Verification status
+Milestone outcomes
+Blocked work
+Stale dependencies
+Change / impact backlog
+```
+
+Một Requirement Completion view phải có thể cho biết trực tiếp:
+
+```text
+REQ-001  Complete
+REQ-002  Missing API error-handling design
+REQ-003  Implementation incomplete: TASK-BE-031
+REQ-004  Implementation done, verification stale
+REQ-005  Blocked by unresolved business rule
+```
+
+Click vào requirement phải drill-down được toàn bộ path requirement → design → deliverable → task → artifact → verification.
+
+---
+
+# 5. Template vs Runtime boundary
+
+Đây là boundary quan trọng nhất của product model:
+
+| Template | Runtime project |
+|---|---|
+| `ProjectTemplateVersion` | `Project` |
+| `ProjectStructureTemplateNode` | `ProjectStructureNode` |
+| `DocumentTemplateVersion` | `Document` + `DocumentVersion` |
+| semantic object schema | project semantic objects |
+| relation type definition | `Relation` |
+| `TaskTemplate` | `Task` |
+| `TasklistTemplate` | runtime tasks + dependencies |
+| governance/coverage policy | evaluated coverage/completeness |
+| DoR/DoD | task transition validation |
+
+Template object không giữ runtime progress của project instance.
+
+---
+
+# 6. Version, baseline, change and impact
+
+Stable identity:
+
+```text
+Technical ID  → immutable UUID/ULID
+Human Key     → stable project-scoped key
+```
+
+Published template version và project baseline version là immutable.
+
+Khi một baseline/versioned semantic entity thay đổi, hệ thống traverse Traceability Graph theo relation policy và tạo **potential impact**, sau đó owner disposition:
+
+```text
+UpdateRequired
+ReviewRequired
+RevalidationRequired
+ReplanRequired
+NoChangeRequired
+Obsolete
+```
+
+Structural-only changes như move/rename/reorder document mặc định không tạo semantic impact.
+
+---
+
+# 7. Canonical documents
+
+- [PRODUCT-AREAS.md](./PRODUCT-AREAS.md): canonical product decomposition và capability map.
+- [APP-REQUIREMENTS.md](./APP-REQUIREMENTS.md): detailed product requirements organized theo Product Area.
+- [APP-DOMAIN-MODEL.md](./APP-DOMAIN-MODEL.md): canonical domain concepts, entities và invariants.
 - [docs/DOCUMENT-ENTITY-MODEL.md](./docs/DOCUMENT-ENTITY-MODEL.md): document/structure/placement model và boundary với traceability graph.
-- [DESIGN-DELIVERABLE-TASK-GOVERNANCE.md](./DESIGN-DELIVERABLE-TASK-GOVERNANCE.md): vocabulary và governance từ requirement → design → deliverable → task → verification.
+- [DESIGN-DELIVERABLE-TASK-GOVERNANCE.md](./DESIGN-DELIVERABLE-TASK-GOVERNANCE.md): governance từ requirement → design → deliverable → task → verification.
 - [INTEGRATION-SYNC-CHANGE-MANAGEMENT.md](./INTEGRATION-SYNC-CHANGE-MANAGEMENT.md): integration, export/sync, baseline, stale detection và impact protocol.
-- [`docs/sample-project/`](./docs/sample-project/): **non-canonical sample fixture**, dùng để kiểm tra khả năng biểu diễn/export của app.
+- [`docs/sample-project/`](./docs/sample-project/): non-canonical acceptance fixture.
 
-Thứ tự ưu tiên khi có mâu thuẫn: `APP-REQUIREMENTS.md` → `APP-DOMAIN-MODEL.md` → tài liệu chuyên đề. Sample project không bao giờ override product requirement/domain model.
+Thứ tự ưu tiên khi có mâu thuẫn:
 
-## 12. Acceptance fixture: sample-project
+```text
+PRODUCT-AREAS.md
+    ↓
+APP-REQUIREMENTS.md
+    ↓
+APP-DOMAIN-MODEL.md
+    ↓
+specialized design/governance docs
+```
 
-Ứng dụng được coi là đủ nền tảng cho design/code khi có thể dùng UI/API để:
+`docs/sample-project/` không override product definition.
 
-1. tạo một project template có structure tương đương `docs/sample-project/`;
-2. instantiate project và sinh folder/document tree tương ứng;
-3. CRUD/move/reorder document mà không làm mất stable identity;
-4. tạo Requirement, Design, Deliverable, Task, Verification và đặt chúng vào document phù hợp;
-5. tạo/query relation hai chiều giữa các traceable entities;
-6. đổi một baseline Requirement và xem được potential impact tới document/design/deliverable/task/verification;
-7. export lại project thành một structure machine-readable + human-readable có stable IDs/version.
+---
 
-## 13. Technical direction
+# 8. MVP sequence
+
+```text
+MVP-1  PA-01 Template foundation
+       Project/Structure/Document/Tasklist templates + version/publish
+
+MVP-2  PA-02 Project instantiation & workspace
+       Runtime structure + documents + semantic objects
+
+MVP-3  PA-02 Traceability & coverage
+       Requirement drill-down + relations + deliverables + runtime tasklist
+
+MVP-4  PA-03 Work management
+       Task board + human/AI assignment + deterministic task context + review/blocker
+
+MVP-5  PA-03 Dashboards
+       Requirement completion + project progress + agent/team activity
+
+MVP-6  Change/impact + integration
+       Baseline/stale/impact + API/export/repository sync
+```
+
+---
+
+# 9. Technical direction
 
 MVP:
 
@@ -278,6 +356,6 @@ Modular Monolith / Application + Domain
 PostgreSQL
 ```
 
-PostgreSQL lưu canonical entity state và relation edges. Recursive CTE/index đủ cho MVP; chỉ cân nhắc graph database khi có evidence về nhu cầu scale/query mà relational model không đáp ứng được.
+PostgreSQL lưu canonical entity state và relation edges. Recursive CTE/index đủ cho MVP; chỉ cân nhắc graph database khi có evidence rõ ràng về scale/query pattern mà relational model không đáp ứng được.
 
-> **Core product là một project-governance graph có authoring tree, stable identity, version và relations. Document chỉ là một trong các traceable entities; folder tree là navigation structure; traceability graph mới là nền tảng để coverage, task context và impact analysis hoạt động.**
+> **Core differentiation của sản phẩm là: methodology được template hóa, project runtime có traceability graph, requirement có thể đo mức drill-down/completion, và human + AI cùng thực thi task trên deterministic context thay vì tự đoán từ một đống Markdown.**
