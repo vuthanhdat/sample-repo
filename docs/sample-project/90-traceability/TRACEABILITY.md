@@ -16,11 +16,13 @@ Functional Requirement không phải input duy nhất của design. Các cross-c
 
 | Requirement | Constrains / satisfied by |
 |---|---|
-| `NFR-PERF-001` | Order/Inventory APIs, screen, DB design, job, performance verification |
-| `NFR-REL-001` | APIs, DBs, job, event, integration, reliability tests |
-| `NFR-OPS-001` | APIs, job, integration, observability/operations design |
+| `NFR-PERF-001` | Order/Inventory APIs, screen, DB design, job, `PERF-001` |
+| `NFR-REL-001` | APIs, DBs, job, event, integration, `REL-TEST-001` |
+| `NFR-OPS-001` | APIs, job, integration, `OBS-001`, `RUN-001` |
+| `NFR-UX-001` | `SCR-DES-001`, `SCR-ORD-001`, `UX-TEST-001` |
+| `NFR-MNT-001` | `ARCH-002`, implementation boundaries, `ARCH-TEST-001` |
 | `DREQ-001` | `DBD-001`, `DBD-002`, `DB-ORD-001`, `DB-INV-001` |
-| `SREQ-001` | `SEC-DES-001`, APIs, screen, security tests |
+| `SREQ-001` | `SEC-DES-001`, APIs, screen, `SEC-TEST-001` |
 | `IREQ-001` | `INT-DES-001`, `INT-SHP-001`, `TEST-SHP-001` |
 
 ## 3. Requirement → Decision → Design Specification → Deliverable
@@ -45,14 +47,14 @@ Deliverable = output the system must actually contain
 
 | Deliverable | Implementing task | Primary verification |
 |---|---|---|
-| `DB-ORD-001` | `TASK-DATA-001` | migration/integrity + strategy gates |
-| `DB-INV-001` | `TASK-DATA-001` | integration/concurrency + `REL-TEST-001` |
-| `API-ORD-001` | `TASK-ORD-BE-001` | `TEST-ORD-001`, `PERF-001`, `REL-TEST-001`, `SEC-TEST-001` |
+| `DB-ORD-001` | `TASK-DATA-001` | migration/integrity + strategy/architecture gates |
+| `DB-INV-001` | `TASK-DATA-001` | integration/concurrency + `REL-TEST-001` + architecture gates |
+| `API-ORD-001` | `TASK-ORD-BE-001` | `TEST-ORD-001`, `PERF-001`, `REL-TEST-001`, `SEC-TEST-001`, `ARCH-TEST-001` |
 | `EVT-ORD-001` | `TASK-ORD-BE-001` | `TEST-ORD-001`, `REL-TEST-001` |
-| `SCR-ORD-001` | `TASK-ORD-FE-001` | E2E + security/performance relevant checks |
-| `API-INV-001` | `TASK-INV-BE-001` | `TEST-INV-001`, `PERF-001`, `REL-TEST-001`, `SEC-TEST-001` |
+| `SCR-ORD-001` | `TASK-ORD-FE-001` | Functional + `SEC-TEST-001`, `PERF-001`, `UX-TEST-001`, `ARCH-TEST-001` |
+| `API-INV-001` | `TASK-INV-BE-001` | `TEST-INV-001`, `PERF-001`, `REL-TEST-001`, `SEC-TEST-001`, `ARCH-TEST-001` |
 | `JOB-INV-001` | `TASK-JOB-001` | `REL-TEST-001` + operational readiness |
-| `INT-SHP-001` | `TASK-INT-001` | `TEST-SHP-001` |
+| `INT-SHP-001` | `TASK-INT-001` | `TEST-SHP-001` + reliability/operability evidence |
 
 ## 5. Planning / operations
 
@@ -73,7 +75,7 @@ DEP-001 + OBS-001 + RUN-001
 Release readiness
 ```
 
-`TASK-OPS-001` implements the production-readiness work around deployment, observability, alerts and runbook evidence; this work is not hidden inside backend feature tasks.
+`TASK-OPS-001` implements production-readiness work around deployment, observability, alerts and runbook evidence; this work is not hidden inside backend feature tasks.
 
 ## 6. Example complete functional path
 
@@ -94,7 +96,7 @@ API-DES-001
   ↓ implemented-by
 TASK-ORD-BE-001
   ↓ verified-by
-TEST-ORD-001 / SEC-TEST-001 / REL-TEST-001
+TEST-ORD-001 / SEC-TEST-001 / REL-TEST-001 / ARCH-TEST-001
 ```
 
 ## 7. Example NFR path
@@ -113,7 +115,7 @@ Implementation tasks
 REL-TEST-001
 ```
 
-NFR vì thế không nằm “bên lề” functional requirement; nó là một dimension của graph và có thể tác động tới nhiều output.
+Một requirement như `NFR-UX-001` hoặc `NFR-MNT-001` cũng đi theo graph tương tự tới Screen/Architecture/Task/Verification. NFR vì thế không nằm “bên lề” functional requirement; nó là một dimension của graph và có thể tác động tới nhiều output.
 
 ## 8. Change impact example
 
@@ -135,4 +137,4 @@ Relation chỉ xác định **candidate impact**. Mỗi item phải có disposit
 
 ## 9. Coverage view
 
-Xem `DOCUMENT-COVERAGE.md` để thấy project template/checklist coverage theo loại requirement, design product, deliverable, verification và operations document.
+Xem `DOCUMENT-COVERAGE.md` để thấy ProjectTemplate/checklist coverage theo loại requirement, design product, deliverable, verification và operations document.
