@@ -2,80 +2,69 @@
 
 ## 1. Mục đích
 
-Tài liệu này định nghĩa boundary giữa Software Project Governance SaaS và các môi trường bên ngoài như source repository, local project folder, CI/CD, quality tools và AI agents. Mục tiêu là giữ SaaS làm canonical source of truth cho governance data nhưng vẫn cho phép developer/tool/AI làm việc trong môi trường quen thuộc và gửi kết quả trở lại app theo protocol có identity, version, audit và conflict control.
+Tài liệu này định nghĩa boundary giữa Software Project Governance SaaS và source repository, local folder, CI/CD, quality tools, CLI và AI/service clients.
 
-Ba vấn đề cần giải quyết:
+Mục tiêu:
 
-1. Làm sao xuất project knowledge/task/output ra repository/folder để human và AI đọc được.
-2. Làm sao external actor cập nhật task/result/artifact/evidence vào SaaS một cách an toàn.
-3. Làm sao quản lý thay đổi để biết object/document/deliverable/task/verification nào bị ảnh hưởng.
+1. Export được **Project Structure Tree + traceable entities + relations + exact versions** ra external environment.
+2. External actor cập nhật task/result/artifact/verification/change qua protocol an toàn.
+3. Detect external changes mà không tạo source-of-truth cạnh tranh.
+4. Quản lý baseline/change/impact/staleness một cách nhất quán với generic Traceability Graph.
 
-## 2. System-of-record boundary
+`docs/sample-project/` chỉ là acceptance fixture; integration layer phải có khả năng export một project runtime thành structure tương tự, không dùng sample làm canonical data.
 
-MVP sử dụng nguyên tắc:
-
-```text
-SaaS Database = canonical governance state
-Repository/Folder = exported projection
-External tools = producers/consumers through API
-```
-
-Điều này không có nghĩa source code nằm trong SaaS. Source repository vẫn là canonical source cho source code. Boundary chính xác là:
+## 2. Source-of-truth boundary
 
 ```text
-Governance metadata / project semantic state → SaaS
-Source code / commits / PRs                 → SCM (GitHub/GitLab/...)
-CI run/log/test artifacts                   → CI provider
+Governance / project semantic state  → SaaS
+Source code / commits / PRs          → SCM
+CI runs / logs / raw CI artifacts    → CI provider
+External document source             → provider của document đó nếu configured
 ```
 
-SaaS giữ reference tới external artifacts và ingestion metadata, không copy mọi binary/log nếu không cần thiết.
+SaaS giữ stable references và metadata cần thiết; không copy mọi binary/log nếu external provider mới là canonical source.
 
 ## 3. Export model
 
-### 3.1 Export mục tiêu
-
 User có thể export:
 
-- toàn project;
-- một baseline;
-- một milestone;
-- một task context bundle;
-- một subtree/selection của documents/objects.
+- whole project;
+- ProjectBaseline;
+- structure subtree;
+- milestone scope;
+- task context bundle;
+- selected traceable entities.
 
-### 3.2 Standard bundle
+Export phải preserve cả **where** và **why**:
 
-Layout mặc định:
+```text
+where → ProjectStructureNode tree / export path
+why   → Traceable IDs, versions, relations, baseline
+```
+
+### 3.1 Standard bundle
 
 ```text
 .project-governance/
   manifest.yaml
   project.yaml
+  structure.yaml
   baseline.yaml
   relations.yaml
   documents/
-    00-governance/
-    10-goals/
-    20-requirements/
-    30-design/
-    40-deliverables/
-    50-tasks/
-    60-verification/
-    70-changes/
+    ... rendered folder/document tree ...
   objects/
-    goals.yaml
-    requirements.yaml
-    rules.yaml
-    acceptance-criteria.yaml
-    design-decisions.yaml
+    knowledge-objects.yaml
     deliverables.yaml
     tasks.yaml
+    verification-definitions.yaml
 ```
 
-Layout có thể được ProjectTemplate override, nhưng manifest schema phải ổn định/versioned.
+`structure.yaml` là projection của `ProjectStructureNode`. `relations.yaml` là projection của canonical Relation graph. Hai file không được merge thành một model mơ hồ.
 
-### 3.3 Manifest
+### 3.2 Manifest
 
-Ví dụ:
+Manifest tối thiểu:
 
 ```yaml
 schemaVersion: "1.0"
@@ -87,62 +76,56 @@ export:
   generatedAt: "2026-09-22T09:30:00+07:00"
   baseline: "BL-2026-09-001"
   mode: "full"
-objects:
+entities:
   - key: "REQ-P2P-012"
-    type: "Requirement"
+    type: "KnowledgeObject.Requirement"
     version: 4
-    path: "documents/20-requirements/REQ-P2P-012.md"
-    checksum: "..."
+  - key: "DOC-P2P-REQ-001"
+    type: "Document"
+    version: 3
+structure:
+  rootChecksum: "..."
+relationsChecksum: "..."
 ```
 
-Manifest giúp tool xác định identity/version thay vì suy luận từ filename.
+### 3.3 Document front matter
 
-### 3.4 Markdown front matter
-
-Human-readable file có thể chứa:
+Rendered Markdown có thể có:
 
 ```yaml
 ---
 projectKey: ERP-LAB
-objectKey: REQ-P2P-012
-objectId: 01K...
-objectType: Requirement
-version: 4
+documentKey: DOC-P2P-REQ-001
+documentId: 01K...
+documentVersion: 3
+structureNodeId: 01K...
 baseline: BL-2026-09-001
 exportId: EXP-01K...
 ---
 ```
 
-Body có thể render canonical payload theo template.
-
-### 3.5 Generated file policy
-
-Exported files nên có marker cho biết phần nào generated và phần nào external-editable nếu mode đó được hỗ trợ. Không nên cho user sửa file generated rồi kỳ vọng app tự hiểu mọi thay đổi nếu chưa có import protocol.
+Semantic objects rendered bên trong document vẫn giữ own object IDs/versions; không đồng nhất document version với semantic version.
 
 ## 4. Repository binding
 
-### 4.1 RepositoryConnection
-
-Project có thể bind một hoặc nhiều repository:
+Project có thể bind nhiều repositories:
 
 ```text
 Project
-  ├── RepositoryConnection: frontend
-  ├── RepositoryConnection: backend
-  └── RepositoryConnection: infra
+├── RepositoryConnection(frontend)
+├── RepositoryConnection(backend)
+└── RepositoryConnection(infra)
 ```
 
 Connection metadata:
 
 - provider;
-- repository external ID;
+- external repository ID;
 - default branch;
 - governance export path;
-- webhook status;
+- webhook configuration;
 - sync mode;
 - credential reference.
-
-### 4.2 Repository sync modes
 
 Initial modes:
 
@@ -154,46 +137,31 @@ DETECT_EXTERNAL_CHANGES
 TWO_WAY_REVIEWED_SYNC
 ```
 
-MVP nên bắt đầu `MANUAL_EXPORT` hoặc `PUSH_EXPORT`. `TWO_WAY_REVIEWED_SYNC` chỉ triển khai sau khi change/conflict model ổn định.
+MVP ưu tiên MANUAL_EXPORT/PUSH_EXPORT. Reviewed two-way sync chỉ triển khai khi identity/version/change model ổn định.
 
-### 4.3 PR export
-
-Một workflow an toàn hơn direct push:
-
-```text
-Create/Update SaaS Baseline
-   ↓
-Generate Export Snapshot
-   ↓
-Create Git branch / commit
-   ↓
-Open PR updating .project-governance/
-   ↓
-Normal repository review/merge
-```
-
-SaaS lưu mapping ExportSnapshot ↔ commit/PR.
-
-## 5. External API model
+## 5. API model
 
 ### 5.1 Query APIs
 
-External clients cần ít nhất:
+Tối thiểu:
 
 ```text
 GET /api/v1/projects/{projectKey}
-GET /api/v1/projects/{projectKey}/objects/{objectKey}
+GET /api/v1/projects/{projectKey}/structure
+GET /api/v1/projects/{projectKey}/structure/{nodeId}
 GET /api/v1/projects/{projectKey}/documents/{documentKey}
+GET /api/v1/projects/{projectKey}/objects/{objectKey}
 GET /api/v1/projects/{projectKey}/deliverables/{deliverableKey}
 GET /api/v1/projects/{projectKey}/tasks/{taskKey}
 GET /api/v1/projects/{projectKey}/tasks/{taskKey}/context
 GET /api/v1/projects/{projectKey}/relations
+GET /api/v1/projects/{projectKey}/backlinks?entity={key}
 GET /api/v1/projects/{projectKey}/impact?root={key}
 ```
 
 ### 5.2 Command APIs
 
-Status/domain changes phải dùng commands thay vì generic patch:
+Lifecycle-sensitive updates dùng command semantics:
 
 ```text
 POST /tasks/{taskKey}/transitions
@@ -201,16 +169,15 @@ POST /tasks/{taskKey}/results
 POST /artifacts
 POST /verification-runs
 POST /change-requests
+POST /impact-items/{id}/disposition
 POST /sync-proposals
 ```
 
-Command model giúp backend validate permission, lifecycle, expected version và business rules.
+Structure/document CRUD vẫn có REST/application commands tương ứng nhưng phải dùng optimistic concurrency cho update nhạy cảm.
 
 ### 5.3 Optimistic concurrency
 
-External client phải gửi version/ETag/expectedVersion cho update nhạy cảm.
-
-Ví dụ:
+External update gửi expected version/ETag.
 
 ```json
 {
@@ -219,168 +186,124 @@ Ví dụ:
 }
 ```
 
-Nếu task đã thành version 8, server trả conflict thay vì overwrite.
+Version mismatch trả conflict, không overwrite.
 
 ### 5.4 Idempotency
 
-External command có side effect cần hỗ trợ `Idempotency-Key`.
+External command có side effect hỗ trợ `Idempotency-Key` để retry an toàn.
 
-Ví dụ agent timeout sau khi submit result rồi retry; server phải trả cùng result thay vì tạo hai TaskResult.
+## 6. Machine identity
 
-## 6. Machine principal và authentication
-
-### 6.1 Không dùng user credential cho agent
-
-AI agent, CLI automation và CI integration phải dùng machine principal riêng.
+AI Agent/CLI automation/CI integration dùng machine principal riêng:
 
 ```text
-Principal(type=AIAgent/Service)
+Principal(type=AIAgent|Service)
    ↓
 ProjectMembership
    ↓
-Role + Permission
-   ↓
-Credential
+Role/Permission + CredentialScope
 ```
 
-### 6.2 MVP API token
+MVP API token:
 
-Token requirements:
-
-- random high-entropy token;
-- plaintext chỉ trả một lần;
-- server lưu hash;
-- optional expiration;
+- high entropy;
+- plaintext shown once;
+- hash stored server-side;
 - revoke/rotate;
-- project-scoped scopes;
-- credential name/description;
-- last-used metadata;
+- optional expiry;
+- project scoped;
+- least privilege;
 - full audit actor.
 
-### 6.3 Scope examples
+AI/service mặc định không có quyền project admin, member management, baseline approval hay deliverable acceptance.
 
-```text
-project:read
-object:read
-document:read
-deliverable:read
-task:read
-task:update-status
-task:submit-result
-artifact:create
-verification:submit
-change:create
-```
+## 7. Task execution protocol
 
-Machine principal không mặc định có:
-
-```text
-member:manage
-project:admin
-baseline:approve
-deliverable:accept
-credential:manage
-```
-
-### 6.4 Future authentication
-
-Sau MVP có thể hỗ trợ:
-
-- OAuth2 Client Credentials;
-- OIDC federation/workload identity;
-- signed short-lived JWT;
-- GitHub App identity.
-
-Authorization vẫn dựa trên Principal + ProjectMembership + Permission/Scope.
-
-## 7. AI task execution protocol
-
-AI không cần đặc quyền domain riêng. External agent adapter có thể dùng protocol:
+External worker flow:
 
 ```text
 1. Authenticate
 2. GET task/{key}/context
-3. Validate task Ready + baseline/version
+3. Validate Ready + expected task/baseline version
 4. POST transition=start
-5. Execute work in repository/tooling
-6. POST artifacts / result
-7. POST transition=submit-for-review
-8. Optional verification result ingestion
+5. Execute in repository/tooling
+6. POST implementation artifacts / result
+7. Run/submit verification where applicable
+8. POST transition=submit-for-review
 ```
 
-Task context bundle trả về:
+Context bundle phải include:
 
-```text
-Task
-Required Knowledge Object versions
-Related Documents
-Business Rules
-Acceptance Criteria
-Target Deliverables + versions
-Allowed/expected scope
-Dependencies
-Verification requirements
-Current Project Baseline
-External repository bindings
-```
+- Task + task version;
+- exact TaskInput versions;
+- related Documents;
+- target Deliverables;
+- required BusinessRules/AcceptanceCriteria/DesignSpecifications;
+- allowed scope;
+- dependencies;
+- verification requirements;
+- current ProjectBaseline;
+- relevant repository connections.
 
-Agent không nên tự crawl cả SaaS/repository để đoán requirement nếu task manifest đã định nghĩa context.
+Context bundle là projection; canonical source vẫn là SaaS entities/relations.
 
 ## 8. External artifact ingestion
 
-### 8.1 Artifact mapping
-
-Ví dụ:
+Example:
 
 ```text
-TASK-P2P-BE-042
-   ↓ produces
-Commit abc123
-PR #381
-src/Procurement/ApprovePurchaseOrderHandler.cs
-openapi/procurement.yaml@abc123
+TASK-P2P-BE-042 --produces--> PR-381
+TASK-P2P-BE-042 --produces--> COMMIT-abc123
 ```
 
-SaaS không cần lưu full file content nếu source repository là canonical; chỉ lưu stable reference, revision và metadata/checksum cần thiết.
+Artifact stores provider/resource/revision metadata. Full file content không bắt buộc nếu SCM là source of truth.
 
-### 8.2 Webhook ingestion
-
-Repository/CI webhook có thể cập nhật:
+Webhook ingestion có thể nhận:
 
 - PR opened/merged;
 - commit pushed;
-- workflow started/completed;
+- workflow completed;
 - test report available;
 - deployment completed.
 
-Webhook event phải map được về Project/Task/Deliverable bằng explicit metadata hoặc relation; không nên dựa hoàn toàn vào NLP từ commit message.
+Mapping về Task/Deliverable phải dựa trên explicit metadata/reference khi có thể; không dựa hoàn toàn vào NLP commit message.
 
-Có thể quy định commit/PR metadata:
+## 9. Canonical relation directions in integration data
+
+Export/import/API phải dùng cùng vocabulary với product model:
 
 ```text
-Task: TASK-P2P-BE-042
-Deliverables: API-P2P-007, EVT-P2P-004
+Requirement --requires-------> Deliverable
+Requirement --satisfied-by---> DesignSpecification
+DesignSpec  --specifies------> Deliverable
+Task        --implements-----> Deliverable
+Task/Result --produces-------> ImplementationArtifact
+VerificationDefinition --verifies--> Requirement / Deliverable
 ```
 
-## 9. Change trigger sources
+Không export canonical edge đảo chiều chỉ vì UI thích label `specified-by` hay `implemented-by`. Reverse labels là view concern.
 
-Change request có thể sinh từ:
+## 10. Change triggers
+
+ChangeRequest có thể được trigger bởi:
 
 ```text
 Human proposal
 Requirement edit
 Design review
+Relation change
+Deliverable contract change
 External sync proposal
 Production defect
 Security finding
 Dependency/platform upgrade
-AI discovered issue
 Verification failure
+AI discovered issue
 ```
 
-Source chỉ cho biết trigger; approval/governance workflow giữ nguyên.
+Structural tree move/rename/reorder **không mặc định** là semantic change trigger.
 
-## 10. Change lifecycle
+## 11. Change lifecycle
 
 ```text
 Draft
@@ -399,47 +322,56 @@ Verified
 Closed
 ```
 
-Emergency path có thể bổ sung sau, nhưng vẫn phải tạo audit/change record hậu kiểm.
+Approved change phải giữ audit về source, changed entities, exact old/new versions và downstream dispositions.
 
-## 11. Impact engine
+## 12. Impact engine
 
-### 11.1 Graph-based impact discovery
+### 12.1 Graph traversal
 
-Impact engine traverse graph từ changed object dựa trên relation policy.
+Impact engine traverse generic Relation graph theo `RelationTypeDefinition`.
 
-Ví dụ:
+Correct example:
 
 ```text
 REQ-P2P-012 v4 → v5
-   ↓ satisfied-by
-DES-P2P-005
-   ↓ introduces
-API-P2P-007
-   ↓ specifies
-API-P2P-007-SPEC
-   ↓ implements
-TASK-P2P-BE-042
-   ↓ verifies
-VER-P2P-012
+   │
+   ├── satisfied-by → API-P2P-007-SPEC
+   │                     │
+   │                     └── specifies → API-P2P-007
+   │                                         ↑
+   │                                         └── implements ← TASK-P2P-BE-042
+   │
+   └── verified-by (reverse view) ← VER-P2P-012
 ```
 
-Không phải mọi edge đều propagate giống nhau. `RelationTypeDefinition` cần metadata:
+Canonical stored edges tương ứng:
 
 ```text
-impactPropagationMode:
-  NONE
-  DIRECT
-  TRANSITIVE
-  REVIEW_ONLY
+REQ-P2P-012 --satisfied-by--> API-P2P-007-SPEC
+API-P2P-007-SPEC --specifies--> API-P2P-007
+TASK-P2P-BE-042 --implements--> API-P2P-007
+VER-P2P-012 --verifies-------> REQ-P2P-012
 ```
 
-Có thể thêm direction và severity policy sau.
+Traversal engine có thể đi forward/reverse theo impact policy; canonical relation direction không cần đổi.
 
-### 11.2 Impact result không phải automatic change
+### 12.2 Impact policy
 
-Graph chỉ trả `PotentialImpact`. Hệ thống không tự động kết luận mọi downstream object phải sửa.
+RelationTypeDefinition tối thiểu có:
 
-Mỗi `ImpactItem` được disposition:
+```text
+ImpactPropagationMode: None | Direct | Transitive | ReviewOnly
+ImpactDirection: Forward | Reverse | Both
+IsVersionSensitive
+```
+
+Không phải mọi edge propagate giống nhau.
+
+### 12.3 Potential impact, không phải automatic change
+
+Graph discovery tạo `ImpactItem`. Nó không tự quyết định downstream phải sửa.
+
+Disposition:
 
 ```text
 UpdateRequired
@@ -450,85 +382,89 @@ NoChangeRequired
 Obsolete
 ```
 
-### 11.3 Example
-
-Requirement wording thay đổi nhưng API contract vẫn đáp ứng:
+Ví dụ Requirement wording thay đổi nhưng API contract vẫn đúng:
 
 ```text
-REQ change
-→ API spec: ReviewRequired
-→ API deliverable: NoChangeRequired
-→ Integration test: RevalidationRequired
+API DesignSpec   → ReviewRequired
+API Deliverable  → NoChangeRequired
+Verification     → RevalidationRequired
 ```
 
-Điều này tránh tạo task sửa code không cần thiết chỉ vì graph có edge.
+## 13. Structural change handling
 
-## 12. Change application và document update
+Tách rõ:
 
-Một approved ChangeRequest phải trả lời được:
+```text
+Structure change
+- rename folder
+- move document
+- reorder siblings
 
-- document nào cần version mới;
-- semantic object nào cần version mới;
-- deliverable nào cần contract/version mới;
-- task nào cần tạo/reopen/replan;
-- verification nào phải chạy lại;
-- milestone/release nào bị ảnh hưởng;
-- export snapshot nào trở nên superseded.
+Semantic change
+- document content/version changes with governed meaning
+- requirement/design/deliverable version changes
+- relation add/remove/change
+- policy change
+```
 
-Hệ thống cần hiển thị `Change Plan` trước khi apply.
+Structure-only change mặc định chỉ tạo audit + export path change. Nó không mark related Requirement/Task stale.
 
-Ví dụ:
+Nếu ProjectTemplate định nghĩa path là external contract, change đó có thể trigger explicit path-sensitive impact policy.
+
+## 14. Change application
+
+Trước apply phải có Change Plan, ví dụ:
 
 ```text
 CR-2026-004
 ├── UPDATE REQ-P2P-012 v4 → v5
 ├── UPDATE API-P2P-007-SPEC v2 → v3
-├── UPDATE Deliverable API-P2P-007 v2 → v3
+├── UPDATE API-P2P-007 v2 → v3
 ├── CREATE TASK-P2P-BE-081
 ├── REVALIDATE VER-P2P-012
-└── MARK Export EXP-103 stale
+└── MARK EXP-103 stale
 ```
 
-## 13. Stale dependency/version detection
+Apply không xóa old versions.
 
-Version-sensitive consumers phải record exact input version hoặc baseline.
+## 15. Staleness
+
+Version-sensitive consumer record exact version/baseline:
 
 ```text
-TASK-P2P-BE-042 input:
-  REQ-P2P-012@v4
-  API-P2P-007-SPEC@v2
+TASK-P2P-BE-042 inputs:
+- REQ-P2P-012@v4
+- API-P2P-007-SPEC@v2
 ```
 
-Nếu current baseline chuyển sang v5/v3, task/result/verification cũ có thể được đánh dấu:
+Khi upstream baseline đổi:
 
 ```text
-CURRENT
-STALE_REVIEW
-STALE_REVALIDATE
-SUPERSEDED
+Current
+StaleReview
+StaleRevalidate
+Superseded
 ```
 
-Stale không đồng nghĩa invalid; disposition quyết định hành động.
+Stale không tự đồng nghĩa invalid; policy/disposition quyết định action.
 
-## 14. Import / two-way sync protocol
+## 16. Two-way sync protocol
 
-### 14.1 Không apply thẳng
-
-External edits được parse thành `SyncProposal`:
+External edits không apply thẳng:
 
 ```text
 External files
-   ↓ parse/validate identity
+   ↓ parse identity/export metadata
 SyncProposal
    ↓ diff against source ExportSnapshot
 Detected Changes
    ↓ conflict detection
 ChangeRequest / Import Review
    ↓ approval
-Apply canonical versions
+Apply canonical versions/structure/relations
 ```
 
-### 14.2 Conflict classes
+Conflict classes:
 
 ```text
 NO_CONFLICT
@@ -538,38 +474,53 @@ BOTH_CHANGED
 UNKNOWN_BASELINE
 IDENTITY_CONFLICT
 SCHEMA_CONFLICT
+STRUCTURE_CONFLICT
+RELATION_CONFLICT
 ```
 
-`BOTH_CHANGED` không auto-merge ở governance layer nếu semantic merge không an toàn.
+`BOTH_CHANGED`, `IDENTITY_CONFLICT`, `RELATION_CONFLICT` không auto-merge nếu semantic safety không rõ.
 
-### 14.3 Identity rule
+## 17. Identity rules for import
 
-Import dựa trên technical ID/object key + export snapshot metadata, không dựa đơn thuần filename/title.
+Import resolve theo stable metadata, không filename/title đơn thuần:
 
-## 15. CLI direction
+- ProjectId/ProjectKey;
+- StructureNodeId khi xử lý tree;
+- EntityId/Key;
+- exact source ExportSnapshot;
+- version/revision;
+- checksums.
 
-Một CLI tương lai có thể cung cấp:
+Rename/move file ngoài repository có thể map về structure mutation nếu identity metadata vẫn còn. Nếu mất identity, tạo conflict/proposal thay vì đoán.
+
+## 18. CLI direction
+
+Future CLI:
 
 ```text
-projgov login
 projgov project pull
 projgov project export
+projgov structure tree
+projgov entity get REQ-P2P-012
+projgov relations REQ-P2P-012
+projgov impact REQ-P2P-012
 projgov task context TASK-P2P-BE-042
 projgov task start TASK-P2P-BE-042
 projgov task submit TASK-P2P-BE-042 --result result.json
-projgov changes detect
 projgov sync propose
 ```
 
-CLI chỉ là API client; không chứa business rules độc lập với server.
+CLI là API client, không chứa business rules độc lập.
 
-## 16. Event/Webhook outbox
+## 19. Events / Outbox
 
-SaaS nên có domain/integration events để external systems subscribe:
+Potential outbound events:
 
 ```text
+StructureChanged
+DocumentVersionCreated
+RelationChanged
 TaskReady
-TaskAssigned
 TaskStatusChanged
 RequirementBaselined
 DeliverableVersionChanged
@@ -580,49 +531,31 @@ BaselineCreated
 ExportSnapshotCreated
 ```
 
-Outbound delivery cần retry và không được làm transaction core thất bại vì external endpoint down. Có thể dùng outbox pattern.
+External delivery dùng retry/outbox; external endpoint outage không làm core transaction thất bại.
 
-## 17. Security requirements
+## 20. Security requirements
 
-- Project boundary enforce ở mọi query/command.
-- Token leak của agent A không được cho phép truy cập project B.
-- Secret không xuất hiện trong export bundle/log.
-- Webhook inbound cần signature validation hoặc equivalent provider authentication.
-- External artifact URL phải được treat như untrusted metadata.
-- Audit mọi machine command quan trọng.
-- Rate limit và abuse protection cho public API.
-- Credential rotation không làm mất principal/activity history.
+- project boundary enforced everywhere;
+- external token scoped/revocable;
+- credential secret protected;
+- webhook authenticity validated;
+- external commands audited;
+- optimistic concurrency on sensitive updates;
+- idempotency for retried commands;
+- import never bypasses authorization/lifecycle rules;
+- relation endpoint ownership/project validation mandatory;
+- export must not leak entities outside selected project/scope.
 
-## 18. MVP sequence
+## 21. Acceptance scenarios
 
-### Phase 1
+Integration/change layer phải hỗ trợ:
 
-- Export snapshot/manual download.
-- Machine principal + scoped API token.
-- Task context/read API.
-- Task transition/result API.
+1. Export project structure tương đương `docs/sample-project/` cùng stable document IDs.
+2. Export relations tách khỏi folder structure.
+3. Move document rồi export lại: path đổi nhưng DocumentId/Key không đổi.
+4. Requirement version change tạo potential impact qua DesignSpec/Deliverable/Task/Verification.
+5. Reverse UI path vẫn query được từ canonical relations, không cần duplicate reverse edges.
+6. External edit từ stale snapshot tạo conflict/proposal, không overwrite canonical state.
+7. Task context bundle resolve exact versions mà external AI/human cần đọc.
 
-### Phase 2
-
-- GitHub repository binding.
-- Push/PR export.
-- Commit/PR/artifact mapping.
-- CI run ingestion.
-
-### Phase 3
-
-- Change request + impact analysis.
-- Stale version detection.
-- Revalidation/replan actions.
-
-### Phase 4
-
-- External edit detection.
-- Sync proposal.
-- Reviewed two-way sync.
-
-## 19. Nguyên tắc tổng kết
-
-> **Integration không được phá vỡ ownership của dữ liệu. SaaS quản lý semantic project state; repository quản lý source code; CI quản lý execution logs; external actors tương tác thông qua identity, API, snapshot và change protocol rõ ràng.**
-
-Nhờ boundary này, human, AI và tooling có thể làm việc tự do ở môi trường bên ngoài nhưng mọi thay đổi quan trọng vẫn được trace về project, version, task, deliverable và change decision tương ứng.
+> **Integration không được phá ownership của dữ liệu: SaaS quản lý governance state, SCM quản lý source code, CI quản lý execution result; mọi bridge giữa chúng phải giữ identity, version, audit và change semantics.**
