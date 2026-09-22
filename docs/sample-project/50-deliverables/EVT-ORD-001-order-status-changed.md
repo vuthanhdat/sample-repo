@@ -3,37 +3,43 @@ id: EVT-ORD-001
 type: Deliverable
 subtype: Event
 status: Specified
-version: 1
+version: 2
 title: Order Status Changed Event
 relations:
   introducedBy:
     - DES-ORD-001
+  specifiedBy:
+    - EVT-DES-001
   implementsRequirements:
     - REQ-ORD-003
+  constrainedBy:
+    - NFR-REL-001
   implementedBy:
     - TASK-ORD-BE-001
+  verifiedBy:
+    - TEST-ORD-001
+    - REL-TEST-001
 ---
 
 # EVT-ORD-001 — Order Status Changed Event
 
 ## Purpose
 
-Thông báo cho các consumer bên ngoài Order Management khi trạng thái Order thay đổi.
+Thông báo một committed Order state transition cho consumer bên ngoài Order Management. Canonical schema/delivery/versioning assumptions nằm ở `EVT-DES-001`.
 
-## Minimum payload
+## Minimum semantic payload
 
-- `eventId`
-- `orderId`
-- `previousStatus`
-- `newStatus`
-- `occurredAt`
-- `causationId`
-- `actor/source`
+- event ID/schema version;
+- Order ID;
+- previous/new status;
+- occurred time;
+- actor/source;
+- correlation/causation metadata.
 
-## Publishing rule
+## Delivery semantics
 
-Event được publish sau một status transition hợp lệ. Consumer không được coi thứ tự delivery là tuyệt đối nếu contract chưa đảm bảo ordering; event phải có identity để hỗ trợ idempotent consumption.
+Consumer phải chịu được duplicate/delayed delivery theo `EVT-DES-001`; global ordering không được giả định nếu contract không quy định.
 
 ## Traceability
 
-`REQ-ORD-003` → `DES-ORD-001` → `EVT-ORD-001` → `TASK-ORD-BE-001`.
+`REQ-ORD-003` → `DES-ORD-001` → `EVT-ORD-001` ← `EVT-DES-001` → implementation + reliability verification.
