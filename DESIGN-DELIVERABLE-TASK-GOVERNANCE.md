@@ -2,630 +2,542 @@
 
 ## 1. Mục đích
 
-Trong một dự án lớn, đặc biệt khi sử dụng AI để phân tích, thiết kế và viết code, vấn đề không chỉ là tài liệu có đầy đủ hay không mà là toàn bộ chuỗi từ yêu cầu đến sản phẩm cuối cùng có được kiểm soát hay không. Một hệ thống có thể có rất nhiều file Markdown, rất nhiều sơ đồ và một `AGENTS.md` chi tiết nhưng vẫn thất bại nếu không trả lời được một cách máy móc các câu hỏi: requirement nào sinh ra màn hình này, design nào quy định API này, task nào phải implement batch này, task đó phải đọc những tài liệu nào, task phụ thuộc vào task nào, bằng chứng nào xác nhận task đã hoàn thành, và nếu một requirement thay đổi thì những design, deliverable, task và test nào bị ảnh hưởng.
+Tài liệu này định nghĩa governance từ Requirement đến Design, Deliverable, Task và Verification. Nó không định nghĩa folder/document hierarchy; project structure được quản lý riêng bằng `ProjectStructureNode` như mô tả trong `APP-DOMAIN-MODEL.md` và `docs/DOCUMENT-ENTITY-MODEL.md`.
 
-Tài liệu này định nghĩa một mô hình thống nhất cho **document structure, design product, system deliverable, task, tasklist, dependency, roadmap và traceability**. Mục tiêu là biến documentation từ một kho Markdown thành một hệ thống knowledge có cấu trúc, đồng thời biến tasklist từ danh sách việc làm thủ công thành execution model có thể giao trực tiếp cho con người hoặc AI agent.
+Mục tiêu là để project trả lời được bằng structured data:
 
-Nguyên tắc trung tâm là:
+- requirement nào sinh ra output này;
+- design nào quy định contract của output;
+- task nào tạo/thay đổi output;
+- task phải đọc exact object/version nào;
+- verification nào chứng minh requirement/output;
+- dependency nào chặn planning;
+- khi upstream thay đổi thì downstream nào cần review/update/revalidation/replan.
 
-> **Requirement định nghĩa điều hệ thống phải đảm bảo; design định nghĩa hình dạng và contract của giải pháp; deliverable là sản phẩm hệ thống phải tồn tại; task là đơn vị công việc để tạo hoặc thay đổi deliverable; verification cung cấp bằng chứng rằng requirement và design đã được hiện thực đúng.**
-
-Toàn bộ chuỗi phải trace được hai chiều.
+Canonical chain:
 
 ```text
-Business Goal
-    ↓
-Business Capability / Business Flow
-    ↓
-Requirement
-    ↓
-Design Product / Specification
-    ↓
-Required Deliverable
-    ↓
-Task / Task Dependency
-    ↓
-Implementation Output
-    ↓
-Verification Evidence
-    ↓
-Accepted Baseline
+Goal / Business Flow
+        ↓
+Requirement / Rule / Acceptance Criterion
+        ↓
+Design Decision / Design Specification
+        ↓
+Deliverable
+        ↓
+Task
+        ↓
+Implementation Artifact
+        ↓
+Verification Run / Evidence
 ```
 
-## 2. Phân biệt các khái niệm cốt lõi
+Traceability là graph; chain trên chỉ là path điển hình.
+
+## 2. Canonical concepts
 
 ### 2.1 Requirement
 
-Requirement mô tả **WHAT must be true**. Requirement không nên chứa chi tiết implementation trừ khi chi tiết đó thực sự là constraint bắt buộc của business hoặc platform. Một requirement có thể là functional requirement, business rule, data requirement, integration requirement hoặc non-functional requirement.
+Requirement mô tả **WHAT must be true**. Requirement không tự quyết định controller, table hoặc library trừ khi đó là explicit constraint.
 
-Ví dụ `REQ-P2P-012` có thể quy định rằng Purchase Order chỉ được phát hành sau khi được phê duyệt. Requirement này không nên tự quyết định controller nào, table nào hoặc library nào sẽ được dùng.
+### 2.2 Document
 
-### 2.2 Design Document
+Document là authoring container. Một document có thể chứa/render nhiều semantic objects qua `KnowledgePlacement`. Document có thể tham gia traceability khi có semantic relation có ý nghĩa, nhưng vị trí folder của document không phải relation.
 
-Design document là **container của knowledge và quyết định thiết kế**. Một document có thể chứa nhiều design product, nhưng document không nên được coi là deliverable runtime của hệ thống. Ví dụ `purchase-order-design.md` là document; bên trong nó có thể mô tả screen specification, API specification, state transition và event contract.
+### 2.3 Design Decision
 
-Document trả lời các câu hỏi như: tại sao chọn thiết kế này, boundary ở đâu, responsibility thuộc component nào, contract là gì, constraint nào cần giữ, và các design product liên quan với nhau ra sao.
+Design Decision ghi lại lựa chọn và rationale: boundary, trade-off, pattern, ownership, constraint hoặc technical direction.
 
-### 2.3 Design Product
+### 2.4 Design Specification
 
-Design product là một **đối tượng thiết kế có ID, owner, lifecycle và contract riêng**, có thể nằm trong Markdown, YAML hoặc một công cụ modeling. Đây là cấp độ cần trace, không phải chỉ trace file Markdown.
-
-Ví dụ:
-
-- `SCR-P2P-002-SPEC`: Screen Specification cho Purchase Order Detail.
-- `API-P2P-007-SPEC`: API Contract cho Approve Purchase Order.
-- `JOB-P2P-001-SPEC`: Batch/Job Specification cho Auto Close Purchase Order.
-- `EVT-P2P-004-SPEC`: Event Contract cho PurchaseOrderApproved.
-- `DATA-P2P-001-SPEC`: Logical Data Specification cho PurchaseOrder.
-
-Design product trả lời câu hỏi **deliverable phải trông như thế nào và phải tuân contract gì**.
-
-### 2.4 System Deliverable
-
-System deliverable là sản phẩm mà hệ thống cuối cùng phải có hoặc phải phát sinh trong runtime/deployment. Đây là “hình dạng” thực tế của hệ thống và phải được kiểm kê từ requirement/design thay vì để implementation tự phát minh.
-
-Các loại deliverable điển hình gồm:
-
-| Loại | Ví dụ |
-|---|---|
-| Screen | Purchase Order Detail, Employee List |
-| API | Approve Purchase Order API |
-| Batch / Job | Month-end Closing Job |
-| File | Purchase Order PDF, Bank Transfer CSV |
-| Report | Trial Balance, P&L |
-| Event | PurchaseOrderApproved |
-| Notification | Approval Request Notification |
-| Interface | Supplier Integration, Bank Integration |
-| Data Object | PurchaseOrder, JournalEntry |
-| Database Artifact | Table, View, Migration |
-| Configuration | Approval policy, code master, feature configuration |
-
-Một deliverable phải có ID ổn định, owner, requirement nguồn, design product quy định nó, task hiện thực nó và verification chứng minh nó hoạt động đúng.
-
-### 2.5 Task
-
-Task là **đơn vị thực thi**, không phải requirement và cũng không phải design. Task tồn tại để tạo, sửa, di chuyển hoặc loại bỏ một hay nhiều deliverable theo một design đã được xác định.
-
-Ví dụ `TASK-P2P-BE-042` có thể implement `API-P2P-007` và publish `EVT-P2P-004`. Task không được tự quyết định rằng hai deliverable đó nên tồn tại; quyết định này phải có từ requirement/design trước khi task ở trạng thái Ready.
-
-### 2.6 Implementation Output và Verification Evidence
-
-Implementation output là thay đổi thực tế trong codebase, database migration, workflow definition, configuration hoặc deployment artifact. Verification evidence là bằng chứng có thể kiểm tra được như unit test, integration test, contract test, E2E test, architecture test, static-analysis result hoặc quality-gate result.
-
-Do đó “task hoàn thành” không đồng nghĩa với “AI đã viết code”. Task chỉ hoàn thành khi output đã tồn tại, traceability đầy đủ và các verification bắt buộc đã pass.
-
-## 3. Quan hệ chuẩn giữa Requirement, Design, Deliverable và Task
-
-Mô hình quan hệ nên được định nghĩa rõ bằng các relation có nghĩa thay vì chỉ dùng hyperlink tùy ý.
-
-```text
-Requirement --requires----------> Deliverable
-Design      --specifies---------> Deliverable
-Task        --implements--------> Deliverable
-Task        --modifies----------> Deliverable
-Task        --depends-on--------> Task / Deliverable
-Test        --verifies----------> Requirement / Deliverable
-Deliverable --owned-by----------> System / Module
-Deliverable --participates-in---> Business Flow
-Milestone   --contains----------> Task
-Roadmap     --contains----------> Milestone / Phase
-```
+Design Specification là traceable semantic object quy định contract/hình dạng của một deliverable. Đây là tên canonical thay cho cách gọi mơ hồ `Design Product` khi nói về entity trong app.
 
 Ví dụ:
 
 ```text
-BF-P2P-001
-   ↓
-REQ-P2P-012
-   ├── requires → SCR-P2P-003
-   ├── requires → API-P2P-007
-   └── requires → EVT-P2P-004
-
-SCR-P2P-003-SPEC ── specifies → SCR-P2P-003
-API-P2P-007-SPEC ── specifies → API-P2P-007
-EVT-P2P-004-SPEC ── specifies → EVT-P2P-004
-
-TASK-P2P-FE-041 ── implements → SCR-P2P-003
-TASK-P2P-BE-042 ── implements → API-P2P-007, EVT-P2P-004
-
-E2E-P2P-012 ── verifies → REQ-P2P-012, SCR-P2P-003
-IT-P2P-012  ── verifies → API-P2P-007, EVT-P2P-004
+SCR-P2P-003-SPEC  Screen Specification
+API-P2P-007-SPEC  API Contract
+JOB-P2P-001-SPEC  Job Specification
+EVT-P2P-004-SPEC  Event Contract
+DATA-P2P-001-SPEC Data Specification
 ```
 
-Mô hình này cho phép kiểm tra cả hai chiều. Từ requirement phải đi xuống được deliverable, task và test; từ một file code hoặc một API cụ thể phải lần ngược lên được task, design, requirement và business flow đã tạo ra nó.
+Một document design có thể render nhiều DesignSpecifications.
 
-## 4. Cấu trúc document và source of truth
+### 2.5 Deliverable
 
-Repository không nên tổ chức chỉ theo loại file Markdown mà nên tổ chức theo **knowledge layer và artifact registry**. Một cấu trúc tham khảo:
+Deliverable là output mà project quyết định phải tồn tại hoặc được cung cấp.
+
+Initial types:
 
 ```text
-/docs
-  /00-governance
-    document-model.md
-    traceability-rules.md
-    task-governance.md
-    quality-gates.md
-
-  /10-business
-    /goals
-    /capabilities
-    /actors
-    /business-rules
-    /flows
-
-  /20-requirements
-    /functional
-    /data
-    /integration
-    /non-functional
-
-  /30-design
-    /systems
-    /screens
-    /apis
-    /jobs
-    /files
-    /reports
-    /events
-    /interfaces
-    /data
-    /security
-    /architecture
-
-  /40-execution
-    roadmap.yaml
-    milestones.yaml
-    tasklist.yaml
-    /tasks
-
-  /50-traceability
-    artifact-registry.yaml
-    relations.yaml
-    coverage-report.md
-
-  /60-verification
-    acceptance-matrix.yaml
-    test-strategy.md
+Screen
+API
+BatchJob
+Event
+File
+Report
+Notification
+Interface
+DataObject
+DatabaseObject
+Configuration
+DeploymentArtifact
+DocumentationDeliverable
 ```
 
-Không bắt buộc mọi project phải dùng đúng tên folder trên, nhưng phải giữ được separation of concern. Business knowledge không nên lẫn với implementation task; requirement không nên lẫn với detailed design; design không nên bị copy vào task; task không nên trở thành nơi định nghĩa lại business rule.
+Deliverable khác source file/commit/PR. Những thứ sau là `ImplementationArtifact`.
 
-Mỗi khái niệm chỉ có một canonical source. Nếu `BR-P2P-006` đã được định nghĩa trong business-rule registry thì screen spec, API spec và task chỉ reference `BR-P2P-006`, không copy nguyên nội dung sang ba nơi khác nhau. Điều này giảm divergence và cho phép impact analysis khi rule thay đổi.
+### 2.6 Task
 
-## 5. Design Product Inventory: kiểm soát sản phẩm thiết kế
+Task là execution contract để tạo/sửa/remove/verify một declared target. Task không được tự phát minh deliverable mới khi đã Ready; discovery làm thay đổi scope phải đi qua change process.
 
-Một design phase không được coi là hoàn thành chỉ vì đã có “một tài liệu design”. Phải kiểm kê được **design product nào bắt buộc phải có** dựa trên loại deliverable.
+### 2.7 Verification
 
-Ví dụ một chức năng có screen, API, event và data object thì design inventory tối thiểu phải có:
+Tách:
 
-| Design Product | Deliverable được quy định |
-|---|---|
-| Screen Specification | Screen |
-| UI Item / Action Specification | Screen items và actions |
-| API Contract | API |
-| Business Rule Mapping | API và UI behavior |
-| Event Contract | Event |
-| Logical Data Specification | Data object |
-| Authorization Specification | Screen/API permissions |
-| Acceptance Criteria | Requirement behavior |
-
-Một batch/job cần product khác: schedule/trigger, selection condition, transaction boundary, retry, idempotency, concurrency, partial-failure behavior, logging, metrics và rerun policy. Một file cần schema/layout, naming, encoding, producer/consumer, generation timing, retention và versioning. Một report cần dimensions, measures, calculation rules, cutoff rule, rounding, drilldown và export format.
-
-Nhờ design product inventory, project có thể phát hiện “design gap” trước khi code. Nếu requirement đã yêu cầu một file output nhưng chưa có `FILE-xxx-SPEC`, task implementation cho file đó chưa được phép chuyển sang Ready.
-
-## 6. Deliverable Inventory: kiểm soát hình dạng hệ thống
-
-Deliverable inventory là danh sách canonical tất cả output bắt buộc của hệ thống. Nó không chỉ phục vụ documentation mà là input cho planning và traceability.
-
-Ví dụ:
-
-```yaml
-- id: SCR-P2P-003
-  type: screen
-  name: Purchase Order Approval
-  owner: SYS-PROCUREMENT
-  requiredBy:
-    - REQ-P2P-012
-  specifiedBy:
-    - SCR-P2P-003-SPEC
-  implementedBy:
-    - TASK-P2P-FE-041
-  verifiedBy:
-    - E2E-P2P-012
-
-- id: API-P2P-007
-  type: api
-  name: Approve Purchase Order
-  owner: SYS-PROCUREMENT
-  requiredBy:
-    - REQ-P2P-012
-  specifiedBy:
-    - API-P2P-007-SPEC
-  implementedBy:
-    - TASK-P2P-BE-042
-  verifiedBy:
-    - IT-P2P-012
+```text
+VerificationDefinition
+  ↓ executed-as
+VerificationRun
+  ↓ produces
+Evidence
 ```
 
-Các rule có thể tự động kiểm tra gồm: deliverable phải có requirement cha; deliverable phải có owner; deliverable phải có design spec phù hợp; deliverable ở trạng thái Implemented phải có ít nhất một task; deliverable ở trạng thái Accepted phải có verification; không được có screen/API/job/file/event “orphan” do implementation tự tạo mà không có nguồn yêu cầu.
+Definition là specification của việc kiểm chứng; Run/Evidence là bằng chứng thực thi cụ thể.
+
+## 3. Canonical relation vocabulary
+
+Quan hệ phải có một direction canonical. Reverse label chỉ là generated view.
+
+```text
+Goal/Flow      --decomposes-to--> Requirement / lower semantic object
+Requirement    --governed-by----> BusinessRule / Policy / Standard
+Requirement    --accepted-by----> AcceptanceCriterion
+Requirement    --satisfied-by---> DesignDecision / DesignSpecification
+Requirement    --requires-------> Deliverable
+DesignSpec     --specifies------> Deliverable
+Task           --implements-----> Deliverable
+Task/Result    --produces-------> ImplementationArtifact
+VerificationDefinition --verifies--> Requirement / Deliverable
+Task/Deliverable/DesignSpec --depends-on--> prerequisite
+Document       --references-----> traceable entity when semantically useful
+ChangeRequest  --impacts--------> traceable entity
+```
+
+Ví dụ chuẩn:
+
+```text
+REQ-P2P-012 --requires-------> API-P2P-007
+REQ-P2P-012 --satisfied-by---> API-P2P-007-SPEC
+API-P2P-007-SPEC --specifies--> API-P2P-007
+TASK-P2P-BE-042 --implements--> API-P2P-007
+VER-P2P-012 --verifies-------> REQ-P2P-012
+VER-P2P-012 --verifies-------> API-P2P-007
+TASK-P2P-BE-042 --produces---> PR-381
+```
+
+UI có thể hiển thị reverse:
+
+```text
+API-P2P-007 required-by REQ-P2P-012
+API-P2P-007 specified-by API-P2P-007-SPEC
+API-P2P-007 implemented-by TASK-P2P-BE-042
+```
+
+Reverse edge không được lưu thành editable canonical edge thứ hai.
+
+## 4. Structure relation không phải traceability relation
+
+Không dùng relation graph để thay project structure tree.
+
+```text
+ProjectStructureNode parent-child
+→ folder/document navigation
+
+KnowledgePlacement
+→ semantic object appears in document
+
+Relation
+→ semantic dependency/traceability
+```
+
+Ví dụ `30-design/api/API-001.md` nằm trong folder `api` là structural fact. `API-001-SPEC specifies API-001` mới là semantic fact.
+
+## 5. Deliverable Inventory
+
+Deliverable inventory là canonical set các output project quyết định phải có. Một deliverable cần tối thiểu:
+
+```text
+ID / Key
+Type
+Name
+Owner
+Lifecycle state
+Current version
+Required-by requirement(s)
+Specified-by design specification(s)
+Implemented-by task(s)
+Verification coverage
+```
+
+Các view `required-by`, `specified-by`, `implemented-by` phải derive từ canonical relation graph.
+
+Validation examples:
+
+- Deliverable không có upstream Requirement → coverage gap.
+- Deliverable ở `Specified` nhưng thiếu required DesignSpecification → invalid transition.
+- Deliverable ở `Implemented` nhưng không có implementing task/artifact → warning/error theo policy.
+- Deliverable ở `Verified` nhưng verification target version không current → stale.
+
+## 6. Design Specification Inventory
+
+Không coi design hoàn thành chỉ vì có một file “design.md”. Required specification phụ thuộc DeliverableType.
+
+### Screen
+
+Tối thiểu có thể gồm:
+
+- screen purpose/context;
+- layout/regions;
+- fields/items;
+- actions/interactions;
+- validation;
+- authorization;
+- state/loading/error behavior;
+- related API/data contract;
+- accessibility/i18n nếu applicable.
+
+### API
+
+- endpoint/operation;
+- request/response contract;
+- validation;
+- authorization;
+- errors;
+- idempotency;
+- transaction/concurrency;
+- observability;
+- versioning/compatibility.
+
+### Batch/Job
+
+- trigger/schedule;
+- selection condition;
+- processing algorithm;
+- transaction boundary;
+- retry/rerun;
+- idempotency;
+- concurrency;
+- partial failure;
+- logging/metrics/alerting.
+
+### File/Interface
+
+- producer/consumer;
+- timing;
+- schema/layout;
+- naming;
+- encoding;
+- transfer/security;
+- retry/duplicate handling;
+- retention;
+- compatibility/versioning.
+
+### Report
+
+- dimensions;
+- measures;
+- calculation rules;
+- cutoff/timezone;
+- rounding;
+- drilldown;
+- export format;
+- authorization.
+
+ProjectTemplate có thể định nghĩa mandatory design products/sections theo DeliverableType.
 
 ## 7. Task là execution contract
 
-Task phải được thiết kế như một contract giữa project và người/AI thực thi. Một task tốt phải trả lời chính xác năm câu hỏi: **tại sao làm, phải đọc gì, được phép thay đổi gì, phải tạo ra gì, và chứng minh hoàn thành bằng cách nào**.
+Task phải trả lời năm câu hỏi:
 
-Một task manifest tham khảo:
+1. Tại sao làm?
+2. Phải đọc gì và version nào?
+3. Được phép thay đổi gì?
+4. Phải tạo/thay đổi deliverable nào?
+5. Bằng chứng nào chứng minh hoàn thành?
+
+Conceptual task manifest:
 
 ```yaml
-id: TASK-P2P-BE-042
+key: TASK-P2P-BE-042
 title: Implement Purchase Order Approval API
 type: backend
 milestone: MS-P2P-02
 priority: high
 
 objective:
-  requirement: REQ-P2P-012
-  description: Implement server-side approval behavior for Purchase Order.
+  description: Implement server-side approval behavior.
 
-traceability:
-  businessFlows:
-    - BF-P2P-001
-  requirements:
-    - REQ-P2P-012
-  businessRules:
-    - BR-P2P-006
-    - BR-P2P-007
+inputs:
+  - entity: REQ-P2P-012
+    version: 4
+    required: true
+  - entity: API-P2P-007-SPEC
+    version: 2
+    required: true
+  - entity: BR-P2P-006
+    version: 3
+    required: true
 
-readSet:
-  mandatory:
-    - REQ-P2P-012
-    - BR-P2P-006
-    - BR-P2P-007
-    - API-P2P-007-SPEC
-    - EVT-P2P-004-SPEC
-    - DATA-P2P-001-SPEC
-    - AC-P2P-012
-  standards:
-    - ARCH-CLEAN-001
-    - API-STANDARD-001
-    - SEC-RBAC-001
+targets:
+  - entity: API-P2P-007
+    action: Modify
 
-writeSet:
-  deliverables:
-    - id: API-P2P-007
-      action: implement
-    - id: EVT-P2P-004
-      action: implement
-  allowedPaths:
-    - src/Procurement/Application/**
-    - src/Procurement/Domain/**
-    - src/Procurement/Api/**
-    - tests/Procurement/**
-  forbiddenPaths:
-    - src/Accounting/**
-    - src/IAM/**
-
-verifySet:
-  acceptanceCriteria:
-    - AC-P2P-012-01
-    - AC-P2P-012-02
-    - AC-P2P-012-03
-  tests:
-    - UT-P2P-012
-    - IT-P2P-012
-  qualityGates:
-    - build
-    - unit-test
-    - integration-test
-    - architecture-test
-    - sonar-quality-gate
+verification:
+  - AC-P2P-012-01
+  - VER-P2P-012
 
 dependsOn:
-  tasks:
-    - TASK-P2P-DATA-030
-  deliverables:
-    - DATA-P2P-001
-
-doneWhen:
-  - declared deliverables are implemented
-  - acceptance criteria pass
-  - required quality gates pass
-  - no out-of-scope artifact is changed
-  - traceability validation passes
+  - TASK-P2P-DATA-030
 ```
 
-`readSet` là context bắt buộc AI phải resolve trước khi code; `writeSet` giới hạn phạm vi thay đổi; `verifySet` định nghĩa bằng chứng cần tạo và gate phải vượt qua. Cấu trúc này quan trọng hơn việc viết một prompt rất dài, vì prompt chỉ nên truyền Task ID và command thực thi, còn knowledge và constraint được resolve từ manifest.
+Allowed repository paths có thể là task execution policy/integration metadata, nhưng không thay canonical Deliverable scope.
 
-## 8. Task Type và Read Policy
+## 8. Task lifecycle
 
-Không phải mọi task đều cần đọc tất cả document. Đọc quá nhiều context làm tăng noise và có thể khiến AI trộn responsibility. Vì vậy project nên định nghĩa policy theo task type.
-
-| Task type | Mandatory input điển hình |
-|---|---|
-| Frontend | Requirement, screen spec, UI item/action spec, API contract, permission spec, acceptance criteria, UI standard |
-| Backend | Requirement, business rules, API contract, data spec, event spec, authorization rule, architecture rule, acceptance criteria |
-| Batch/Job | Requirement, job spec, business rules, data spec, schedule, retry/error policy, observability policy, acceptance criteria |
-| Integration | Requirement, interface contract, event/file contract, idempotency/error policy, acceptance criteria |
-| Database | Data requirement, logical data spec, ownership, retention/audit rule, DB/migration standard |
-| Test | Requirement, acceptance criteria, relevant contracts, test strategy, environment/data setup |
-| Refactoring | Architecture rule, current dependency map, affected contracts, regression tests, explicit non-functional goal |
-
-Task validator có thể từ chối chuyển task sang Ready nếu input bắt buộc theo loại task còn thiếu. Điều này đặc biệt hữu ích khi làm việc với AI vì nó ngăn agent bắt đầu implementation khi specification chưa hoàn thiện.
-
-## 9. Tasklist không phải danh sách TODO
-
-Tasklist là **execution model được derive từ deliverable inventory và dependency graph**, không phải danh sách việc được nghĩ ra theo cảm hứng. Mỗi task phải có ID, type, owner/agent role, milestone, dependency, read/write/verify set, status và traceability.
-
-Tasklist cấp project nên chứa metadata đủ để planning mà không copy toàn bộ task manifest:
-
-```yaml
-- id: TASK-P2P-DATA-030
-  type: database
-  milestone: MS-P2P-01
-  status: ready
-  implements:
-    - DATA-P2P-001
-  dependsOn: []
-
-- id: TASK-P2P-BE-042
-  type: backend
-  milestone: MS-P2P-02
-  status: blocked
-  implements:
-    - API-P2P-007
-    - EVT-P2P-004
-  dependsOn:
-    - TASK-P2P-DATA-030
-
-- id: TASK-P2P-FE-041
-  type: frontend
-  milestone: MS-P2P-02
-  status: blocked
-  implements:
-    - SCR-P2P-003
-  dependsOn:
-    - TASK-P2P-BE-042
-
-- id: TASK-P2P-E2E-050
-  type: test
-  milestone: MS-P2P-03
-  status: blocked
-  verifies:
-    - REQ-P2P-012
-  dependsOn:
-    - TASK-P2P-FE-041
-    - TASK-P2P-BE-042
-```
-
-Nhờ cấu trúc này, tasklist có thể được validate và visualized thành dependency graph thay vì chỉ là checklist.
-
-## 10. Dependency phải được mô hình hóa ở nhiều cấp
-
-Chỉ có dependency giữa task với task là chưa đủ. Dự án enterprise có ít nhất bốn loại dependency cần phân biệt.
-
-**Business dependency** thể hiện flow/capability nào cần flow/capability khác tồn tại trước. Ví dụ Invoice Matching phụ thuộc Purchase Order và Goods Receipt. **Design dependency** thể hiện một design product cần contract khác ổn định trước khi hoàn thiện, ví dụ screen design phụ thuộc API contract và data dictionary. **Deliverable dependency** thể hiện runtime artifact phụ thuộc artifact khác, ví dụ frontend screen phụ thuộc API, posting job phụ thuộc accounting period configuration. **Execution dependency** là dependency giữa task, dùng để lập lịch thực thi.
-
-Không nên suy luận execution dependency chỉ từ thứ tự task được ghi trong file. Dependency phải explicit:
+Canonical Task lifecycle:
 
 ```text
-TASK-P2P-DATA-030
-        ↓
-TASK-P2P-BE-042
-        ↓
-TASK-P2P-FE-041
-        ↓
-TASK-P2P-E2E-050
+Draft → Ready → InProgress → Review → Done
+          ↕          ↕
+        Blocked    Blocked
 ```
 
-Đồng thời không nên tạo dependency giả. Frontend và backend có thể phát triển song song nếu API contract đã baseline và frontend sử dụng mock/contract fixture. Khi đó dependency thật là cả hai task cùng phụ thuộc `API-P2P-007-SPEC`, chứ frontend không nhất thiết phải chờ backend code xong.
+`Cancelled` là terminal riêng.
+
+Không dùng `Implemented → Verified → Accepted` cho Task. Đó là Deliverable lifecycle:
 
 ```text
-                 API-P2P-007-SPEC
-                  /             \
-                 ↓               ↓
-        TASK-P2P-FE-041   TASK-P2P-BE-042
-                  \             /
-                   ↓           ↓
-                    E2E / Integration
+Planned → Specified → Implemented → Verified → Accepted → Deprecated
 ```
 
-Cách mô hình dependency đúng sẽ trực tiếp quyết định khả năng parallelize nhiều AI agent mà không gây conflict hoặc build sai contract.
+`Task Done` chỉ nói execution contract của task đã hoàn thành. `Deliverable Accepted` yêu cầu lifecycle/verification/acceptance riêng.
 
-## 11. Roadmap, Phase và Milestone
+## 9. Definition of Ready
 
-Roadmap trả lời câu hỏi **khi nào và theo thứ tự chiến lược nào các capability/deliverable được đưa vào baseline**. Tasklist trả lời câu hỏi **công việc cụ thể nào phải được thực hiện**. Hai thứ liên quan chặt nhưng không được trộn làm một.
+Implementation task chỉ Ready khi policy-required conditions thỏa mãn, ví dụ:
 
-Một hierarchy thực dụng:
+- upstream Requirement tồn tại và ở trạng thái phù hợp;
+- target Deliverable đã được declared;
+- mandatory DesignSpecification đủ;
+- required inputs có exact version/baseline;
+- acceptance/verification requirement rõ;
+- dependency đạt required state;
+- scope đủ nhỏ và ownership không conflict;
+- không có unresolved blocking change.
+
+AI/human không được dùng Ready task như chỗ để tự hoàn thiện requirement/design còn thiếu.
+
+## 10. Definition of Done
+
+Task Done policy có thể yêu cầu:
+
+- declared task targets đã được xử lý;
+- required implementation artifacts/result đã submit;
+- required checks/tests pass;
+- no unapproved scope expansion;
+- traceability edges/result data đầy đủ;
+- review đã hoàn tất nếu policy yêu cầu.
+
+Done không tự transition Deliverable sang Accepted.
+
+## 11. Dependency layers
+
+Cần phân biệt:
+
+- business dependency;
+- design/contract dependency;
+- deliverable/runtime dependency;
+- task execution dependency.
+
+Không suy luận execution dependency chỉ từ thứ tự file/task.
+
+Ví dụ frontend/backend có thể chạy song song nếu cùng phụ thuộc một API contract đã baseline:
+
+```text
+API-P2P-007-SPEC
+      /       \
+     ↓         ↓
+FE Task       BE Task
+      \       /
+       ↓     ↓
+      E2E/Integration
+```
+
+`depends-on` direction luôn là consumer → prerequisite.
+
+## 12. Roadmap, Phase, Milestone
 
 ```text
 Roadmap
-  └── Phase / Release
+  └── Phase
        └── Milestone
-            └── Task
-                 └── Deliverable changes
+            ├── required deliverable outcomes
+            └── tasks
 ```
+
+Milestone nên được định nghĩa bằng outcome/deliverable state, không chỉ danh sách task hoặc target date.
 
 Ví dụ:
 
 ```text
-ROADMAP ERP-LAB
-
-Phase 1 - Procurement Foundation
-  MS-P2P-01 Data and Core Domain
-  MS-P2P-02 PO Transaction Flow
-  MS-P2P-03 Verification and E2E
-
-Phase 2 - Accounting Integration
-  MS-ACC-01 Posting Contract
-  MS-ACC-02 Journal Integration
-  MS-ACC-03 Reconciliation
+MS-P2P-02 complete when:
+- SCR-P2P-003 >= Verified
+- API-P2P-007 >= Verified
+- EVT-P2P-004 >= Verified
 ```
 
-Milestone phải được định nghĩa bằng **outcome/deliverable set**, không chỉ bằng ngày hoặc danh sách task. Ví dụ `MS-P2P-02` hoàn thành khi `SCR-P2P-003`, `API-P2P-007` và `EVT-P2P-004` đạt trạng thái Verified. Task là phương tiện để đạt milestone; nếu task decomposition thay đổi nhưng deliverable outcome không đổi thì roadmap không nên bị viết lại toàn bộ.
+Task decomposition có thể thay đổi mà milestone outcome không cần đổi.
 
-Roadmap cũng phải tôn trọng dependency graph. Nếu Phase 2 cần accounting event contract từ Phase 1 thì dependency đó phải explicit. Công cụ planning có thể dùng graph để tìm critical path, các task có thể chạy song song và các blocker thực sự.
+## 13. Planning sequence
 
-## 12. Definition of Ready
-
-Một task chỉ được giao cho AI khi ở trạng thái Ready. Definition of Ready nên được kiểm tra tự động càng nhiều càng tốt.
-
-Một task implementation tối thiểu cần thỏa mãn: requirement tồn tại và đã baseline; deliverable cần implement đã được declare; design product bắt buộc đã có và không ở trạng thái Draft chưa kiểm soát; business rule và contract dependency đã resolve; readSet đầy đủ; writeSet và allowed scope rõ ràng; acceptance criteria tồn tại; dependency task/deliverable đã đạt trạng thái yêu cầu; quality gate đã được xác định.
-
-Nếu thiếu API contract, thiếu data ownership hoặc acceptance criteria còn mơ hồ, task phải ở `Blocked` hoặc `Draft`, không nên để AI tự suy luận phần còn thiếu và tiếp tục code.
-
-Trạng thái tham khảo:
+Recommended sequence:
 
 ```text
-Draft → Ready → In Progress → Implemented → Verified → Accepted
-           ↑          |
-           └─ Blocked ┘
-```
-
-`Implemented` chỉ nói output đã được tạo; `Verified` nói verification bắt buộc đã pass; `Accepted` nói output đã được đưa vào baseline/release theo governance của project.
-
-## 13. Definition of Done
-
-Definition of Done phải gắn với traceability và verification, không chỉ với việc build thành công. Một task chỉ được Done khi toàn bộ declared deliverable đã được implement hoặc modified đúng action; required tests đã tồn tại; acceptance criteria pass; architecture/static/security/quality gates bắt buộc pass; không có file hoặc artifact ngoài writeSet bị thay đổi nếu không có approved change request; documentation/registry được cập nhật nếu contract thay đổi; và traceability validator không phát hiện missing link.
-
-Với AI coding, một câu trả lời như “implementation completed successfully” không phải evidence. Evidence phải nằm trong repository hoặc CI result.
-
-## 14. AI Execution Protocol
-
-Khi giao việc cho AI, prompt không nên mang toàn bộ requirement/design. Một command lý tưởng chỉ cần xác định Task ID và yêu cầu tuân execution protocol.
-
-```text
-Implement TASK-P2P-BE-042.
-```
-
-Agent runner phải resolve task manifest, đọc toàn bộ `readSet.mandatory`, kiểm tra dependency và Definition of Ready, chỉ thay đổi artifact/path trong writeSet, tạo output/test được khai báo trong deliverables và verifySet, chạy quality gates, sau đó cập nhật task status cùng traceability evidence.
-
-`AGENTS.md` vì thế nên đóng vai trò hướng dẫn protocol chung, ví dụ: “khi nhận Task ID, resolve manifest; không code nếu task chưa Ready; không tự tạo deliverable ngoài writeSet; mọi assumption làm thay đổi contract phải được ghi thành change request; chỉ kết luận Done khi verifySet và quality gate pass.” Knowledge nghiệp vụ cụ thể không nên copy vào `AGENTS.md`.
-
-## 15. Change Request và kiểm soát việc AI tự mở rộng scope
-
-Trong quá trình implementation, agent có thể phát hiện design chưa đủ hoặc cần thêm deliverable. Việc này không nên bị cấm tuyệt đối, nhưng agent không được âm thầm tạo artifact mới. Nó phải tạo hoặc đề xuất một **Design/Requirement Change Request**.
-
-Ví dụ task chỉ cho phép implement `API-P2P-007`, nhưng trong quá trình làm AI nhận ra cần thêm `JOB-P2P-009`. Trạng thái đúng là task bị block hoặc tiếp tục phần không phụ thuộc, đồng thời tạo change request mô tả lý do, requirement bị ảnh hưởng, design product mới cần bổ sung, dependency mới và impact lên roadmap/tasklist. Chỉ sau khi change được baseline thì deliverable/task mới được thêm vào registry.
-
-Cơ chế này phân biệt rõ “AI phát hiện vấn đề hợp lý” với “AI tự vẽ thêm hệ thống”.
-
-## 16. Version, Baseline và Impact Analysis
-
-Traceability chỉ có giá trị nếu biết task đã đọc phiên bản nào của requirement/design. Task nên record input baseline hoặc revision hash cho các input quan trọng.
-
-```yaml
-inputBaseline:
-  REQ-P2P-012: rev-04
-  API-P2P-007-SPEC: rev-02
-  DATA-P2P-001-SPEC: rev-07
-```
-
-Khi `REQ-P2P-012` đổi sang `rev-05`, hệ thống có thể query graph để tìm toàn bộ design product, deliverable, task và test phụ thuộc revision cũ. Các task đã Accepted không nhất thiết tự động quay lại In Progress, nhưng phải tạo impact-analysis item hoặc revalidation requirement.
-
-Đây là khác biệt giữa “có link trong Markdown” và “có traceability thực sự”. Traceability phải hỗ trợ change propagation.
-
-## 17. Traceability Matrix và các kiểm tra bắt buộc
-
-Ngoài graph, nên sinh ra matrix để con người review nhanh:
-
-| Requirement | Design | Deliverable | Task | Verification | Status |
-|---|---|---|---|---|---|
-| REQ-P2P-012 | SCR/API/EVT specs | SCR-003, API-007, EVT-004 | FE-041, BE-042 | IT-012, E2E-012 | Verified |
-| REQ-P2P-020 | JOB spec | JOB-001 | JOB-060 | IT-020 | In Progress |
-
-Các validator quan trọng gồm: requirement không có deliverable; deliverable không có requirement; deliverable không có design spec; deliverable không có implementation task; task không có requirement hoặc objective; task thiếu mandatory input; task phụ thuộc vào cycle; task Ready nhưng dependency chưa Ready/Accepted theo policy; task Done nhưng verifySet chưa pass; test không trace về requirement/deliverable; implementation artifact không có task nguồn; design product không còn được deliverable nào dùng; requirement thay đổi sau baseline nhưng dependent deliverable chưa được revalidated.
-
-Những check này nên được đưa vào CI hoặc một traceability checker thay vì review thủ công toàn bộ.
-
-## 18. Roadmap và Tasklist được sinh ra từ design như thế nào
-
-Quy trình planning nên đi theo thứ tự sau. Đầu tiên xác định business scope và business flow. Tiếp theo phân rã thành requirement và business rule. Từ requirement xác định required deliverable inventory. Với từng deliverable, tạo design product cần thiết và dependency giữa các contract. Khi design đạt mức đủ để implementation, phân rã mỗi deliverable thành task theo boundary kỹ thuật hợp lý. Sau đó xây execution dependency graph, nhóm task vào milestone theo outcome, rồi nhóm milestone vào phase/release của roadmap.
-
-Chuỗi này có thể biểu diễn như sau:
-
-```text
-Business Scope
+Business Scope / Goal
     ↓
-Business Flow
+Business Flow / Capability
     ↓
-Requirement Set
+Requirements / Rules / Acceptance Criteria
     ↓
 Deliverable Inventory
     ↓
-Design Product Inventory
+Design Specification Inventory
     ↓
-Design Dependency Graph
+Dependency Graph
     ↓
 Task Decomposition
     ↓
-Execution Dependency Graph
+Milestones / Roadmap
     ↓
-Milestones
-    ↓
-Roadmap / Release Plan
+Execution / Verification
 ```
 
-Điểm quan trọng là tasklist **không nên xuất hiện trước khi biết deliverable cần tạo**. Nếu bắt đầu bằng “hãy tạo 50 task cho module HCM”, AI rất dễ invent công việc và kiến trúc. Ngược lại, nếu đã có deliverable inventory và design dependency, tasklist chỉ là decomposition của execution work nên dễ kiểm soát hơn rất nhiều.
+Không nên tạo tasklist lớn trước khi biết Deliverable Inventory; nếu không AI/human dễ invent architecture/work không có upstream reason.
 
-## 19. Quan hệ many-to-many giữa Task và Deliverable
+## 14. Many-to-many Task ↔ Deliverable
 
-Không nên ép quan hệ một task bằng một deliverable. Một backend task có thể implement một API và một domain event nếu chúng là một unit of change hợp lý; một deliverable lớn như report phức tạp có thể cần nhiều task gồm data query, backend contract, frontend rendering và performance tuning.
+Một Task có thể implement nhiều Deliverables nếu chúng cùng một unit of change hợp lý. Một Deliverable có thể cần nhiều Tasks.
 
-Do đó relation phải hỗ trợ many-to-many nhưng cần giữ task đủ nhỏ để có thể verify độc lập. Quy tắc thực dụng là một task nên có một objective thống nhất và một writeSet đủ nhỏ để review. Nếu task chạm nhiều module, nhiều loại deliverable không liên quan hoặc cần nhiều acceptance boundary khác nhau, task nên được tách.
+Rule thực dụng: Task có một objective thống nhất, scope đủ nhỏ để review/verify và không vượt ownership boundary vô lý.
 
-## 20. Ownership và Boundary
+## 15. Ownership
 
-Mọi requirement, design product và deliverable cần có owner ở mức system/module/domain. Ownership giúp quyết định nơi đặt canonical source và ngăn việc một task trong module này tự sửa data hoặc contract thuộc module khác.
+Requirement, DesignSpecification và Deliverable nên có owner. Ownership được dùng để:
 
-Ví dụ `DATA-CUSTOMER-001` thuộc CRM. Order Management có thể reference Customer ID hoặc snapshot theo contract nhưng không được tự thay schema master customer. Nếu task Order cần thay đổi Customer contract, dependency phải đi qua change request hoặc contract task của CRM.
+- phân review responsibility;
+- validate cross-boundary changes;
+- resolve change impact owner;
+- map với code ownership/architecture policy khi integration cho phép.
 
-Ownership cũng nên được dùng trong code ownership, architecture tests và CI policy để biến document rule thành enforcement.
+Task của module A không được tự sửa contract thuộc module B nếu chưa có authorized scope/change.
 
-## 21. Machine-readable trước, Markdown để giải thích
+## 16. Version, Baseline và Staleness
 
-Những dữ liệu mang tính registry và relation như ID, type, owner, status, dependency, requiredBy, specifiedBy, implementedBy, verifiedBy, milestone và baseline revision nên được lưu ở dạng machine-readable như YAML/JSON hoặc database/modeling tool. Markdown phù hợp cho rationale, context, diagrams, trade-off và explanation.
+TaskInput, version-sensitive Relation hoặc VerificationRun phải có thể pin exact version/revision.
 
-Một nguyên tắc hữu ích:
-
-> **Nếu thông tin cần được validate, query, graph, diff hoặc dùng để quyết định AI phải đọc gì, thông tin đó không nên chỉ tồn tại trong prose.**
-
-Ví dụ tên task và dependency nên ở YAML; lý do tại sao task cần dependency đó có thể được giải thích trong Markdown.
-
-## 22. Cấu trúc tối thiểu cho một project AI-assisted quy mô lớn
-
-Một baseline gọn nhưng đủ mạnh có thể gồm:
+Ví dụ:
 
 ```text
-AGENTS.md                      # execution protocol chung, ngắn
-README.md                      # project overview
-
-/docs
-  /business                    # goal, capability, flow, rule
-  /requirements                # canonical requirements
-  /design                      # design docs + design products
-  /execution
-    roadmap.yaml
-    milestones.yaml
-    tasklist.yaml
-    /tasks                     # detailed task manifests
-  /traceability
-    artifacts.yaml             # deliverable registry
-    relations.yaml             # graph relations nếu tách riêng
-  /verification
-    acceptance.yaml
-    quality-gates.md
-
-/src                           # implementation
-/tests                         # executable verification
+TASK-P2P-BE-042 consumed:
+- REQ-P2P-012@v4
+- API-P2P-007-SPEC@v2
 ```
 
-Cấu trúc này không nhằm tạo thêm bureaucracy. Ngược lại, mục tiêu là làm cho AI không phải đọc toàn bộ repository để đoán context. Task ID sẽ dẫn tới một context bundle nhỏ, chính xác và có thể kiểm chứng.
+Nếu upstream baseline đổi sang v5/v3, system không tự reopen task. Nó đánh dấu stale/potential impact và dùng policy/disposition để quyết định review/revalidation/replan.
 
-## 23. Nguyên tắc tổng kết
+## 17. Change control
 
-Một dự án lớn không nên được quản trị bằng “càng nhiều Markdown càng tốt”. Tài liệu chỉ hữu ích khi mỗi lớp có responsibility rõ và các object quan trọng được định danh, version và trace. Requirement định nghĩa nhu cầu; design product định nghĩa contract; deliverable định nghĩa sản phẩm hệ thống cần tồn tại; task định nghĩa đơn vị thực thi; roadmap và dependency định nghĩa thứ tự triển khai; verification định nghĩa bằng chứng.
+Khi implementation phát hiện cần deliverable/design/requirement mới ngoài approved scope:
 
-Tasklist không phải một TODO list mà là projection của design và deliverable inventory sang execution space. Roadmap không phải một bảng ngày tháng mà là cấu trúc milestone/outcome dựa trên dependency và business priority. AI agent không nên được giao “hãy làm chức năng X” cùng một prompt dài; nó nên được giao một Task ID mà từ đó hệ thống resolve được readSet, writeSet, verifySet, dependency và baseline.
+```text
+Task discovery
+   ↓
+ChangeRequest proposal
+   ↓
+ImpactAnalysis
+   ↓
+Review / Approve
+   ↓
+Create/update canonical entities
+   ↓
+Replan affected tasks/milestones
+```
 
-Nếu mô hình này được implement đúng, ta có thể hỏi repository những câu có tính quản trị thực sự: “Requirement này đã được implement đầy đủ chưa?”, “Màn hình này tồn tại vì requirement nào?”, “Task này được phép sửa những gì?”, “Nếu event contract này đổi thì task/test nào phải chạy lại?”, “Những task nào có thể chạy song song?”, “Milestone này còn thiếu deliverable nào?”, “Có artifact nào AI tự tạo mà không có requirement không?”. Khi repository trả lời được các câu hỏi đó bằng dữ liệu có cấu trúc thay vì bằng trí nhớ của con người hoặc khả năng đọc Markdown của AI, project mới thực sự có traceability.
+Không âm thầm thêm output mới chỉ vì agent thấy thuận tiện.
 
-> **Traceability hoàn chỉnh không dừng ở Requirement → Design → Code. Nó phải đi xuyên suốt Requirement → Design Product → Deliverable → Task → Dependency/Roadmap → Implementation → Verification → Baseline, và phải truy ngược lại được theo chiều ngược lại.**
+## 18. Coverage và validation
+
+System phải query/validate được ít nhất:
+
+- Requirement không có Design/Deliverable.
+- Requirement không có AcceptanceCriterion khi policy yêu cầu.
+- Deliverable không có upstream Requirement.
+- Deliverable không có mandatory DesignSpecification.
+- Deliverable không có implementation Task.
+- Deliverable không có current verification.
+- Task không có upstream reason/target.
+- Task Ready thiếu required inputs.
+- Acyclic dependency có cycle.
+- ImplementationArtifact không trace được về task/result.
+- Version-sensitive relation/input stale.
+- Orphan Document/KnowledgeObject/Deliverable theo policy.
+
+## 19. Task context for AI/Human tooling
+
+Prompt không nên copy toàn bộ project documentation. Tool/agent nhận Task ID rồi gọi context API để resolve:
+
+```text
+Task
++ exact required entity versions
++ related documents
++ target deliverables
++ allowed scope
++ dependency state
++ acceptance/verification requirements
++ current baseline
+```
+
+Task context là projection của canonical graph, không phải một source of truth mới.
+
+## 20. Machine-readable principle
+
+Thông tin cần query/validate/diff/impact phải là structured state trong database/API, không chỉ prose:
+
+- identity;
+- type;
+- lifecycle;
+- relation;
+- dependency;
+- owner;
+- version/baseline;
+- task input/target;
+- verification target;
+- impact disposition.
+
+Markdown/rich text phù hợp với rationale, explanation, diagrams và narrative.
+
+## 21. Sample-project role
+
+`docs/sample-project/` không phải canonical product model. Nó là acceptance fixture để kiểm tra rằng application có thể:
+
+- instantiate nested folder/document structure;
+- preserve stable identity qua move/rename;
+- create/place semantic objects;
+- manage Deliverable/Task/Verification;
+- create/query typed relations;
+- export structure + graph;
+- perform impact analysis khi baseline entity thay đổi.
+
+> **Governance đúng không phải “nhiều Markdown”. Nó là identity + version + explicit output + execution contract + typed relation + verification + change history.**
